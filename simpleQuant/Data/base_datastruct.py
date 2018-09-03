@@ -88,7 +88,7 @@ class _quotation_base():
         pass
 
     def __repr__(self):
-        return '< QA_Base_DataStruct with %d securities >' % len(self.code)
+        return '< Base_DataStruct with %d securities >' % len(self.code)
 
     def __call__(self):
         '''
