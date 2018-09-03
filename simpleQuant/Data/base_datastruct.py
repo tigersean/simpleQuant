@@ -34,9 +34,9 @@ import numpy as np
 import pandas as pd
 from pyecharts import Kline, Bar, Grid
 
-from QUANTAXIS.QAUtil import (QA_util_log_info, QA_util_random_with_topic,
-                              QA_util_to_json_from_pandas)
-from QUANTAXIS.QAUtil.QADate import QA_util_to_datetime
+from simpleQuant.Util import (util_log_info, util_random_with_topic,
+                              util_to_json_from_pandas)
+from simpleQuant.Util.Util_date import util_to_datetime
 
 # todo 🛠基类名字 _quotation_base 小写是因为 不直接初始化， 建议改成抽象类
 
@@ -44,12 +44,12 @@ from QUANTAXIS.QAUtil.QADate import QA_util_to_datetime
 class _quotation_base():
     '''
     一个自适应股票/期货/指数的基础类 , 抽象类， 不能直接初始化，必须通过下面的类继承实现
-    🥑index_day  字符串 初始化  👤👥QA_DataStruct_Index_day继承
-    🥑index_min  字符串 初始化  👤👥QA_DataStruct_Index_min继承
-    🥑stock_day  字符串 初始化  👤👥QA_DataStruct_Stock_day继承
-    🥑stock_min  字符串 初始化  👤👥QA_DataStruct_Stock_min继承
-    🥑future_min 字符串 初始化  👤👥QA_DataStruct_Future_min继承
-    🥑future_day 字符串 初始化  👤👥QA_DataStruct_Future_day继承
+    index_day  字符串 初始化  DataStruct_Index_day继承
+    index_min  字符串 初始化  DataStruct_Index_min继承
+    stock_day  字符串 初始化  DataStruct_Stock_day继承
+    stock_min  字符串 初始化  DataStruct_Stock_min继承
+    future_min 字符串 初始化  DataStruct_Future_min继承
+    future_day 字符串 初始化  DataStruct_Future_day继承
     '''
 
     # 🛠todo  DataFrame 改成 df 变量名字
@@ -71,13 +71,13 @@ class _quotation_base():
         # 数据类型 可能的取值
 
         self.type = dtype
-        self.data_id = QA_util_random_with_topic('DATA', lens=3)
+        self.data_id = util_random_with_topic('DATA', lens=3)
 
         # 默认是不复权
         self.if_fq = if_fq
         # dtype 参数 指定类 mongo 中 collection 的名字   ，
         # 🛠todo 检查 dtype 字符串是否合法， 放到抽象类中，用子类指定数据库， 后期可以支持mongodb分片集群
-        # 🛠todo 子类中没有用到mongodb的数据是通过， QA_data_stock_to_fq  实现数据复权的
+        # 🛠todo 子类中没有用到mongodb的数据是通过， data_stock_to_fq  实现数据复权的
         # 等价执行 例如：type='stock_min' 则执行 DATABASE.stock_min
         #self.mongo_coll = eval('DATABASE.{}'.format(self.type))
         self.choose_db()
@@ -536,7 +536,7 @@ class _quotation_base():
             path_name = '.' + os.sep + 'QA_' + self.type + \
                 '_codepackage_' + self.if_fq + '.html'
             kline = Kline('CodePackage_' + self.if_fq + '_' + self.type,
-                          width=1360, height=700, page_title='QUANTAXIS')
+                          width=1360, height=700, page_title='SimpleQuant')
 
             bar = Bar()
             data_splits = self.splits()
@@ -610,7 +610,7 @@ class _quotation_base():
         if name in self.data.__dir__():
             return eval('self.{}'.format(name))
         else:
-            raise ValueError('QADATASTRUCT CANNOT GET THIS PROPERTY')
+            raise ValueError('DATASTRUCT CANNOT GET THIS PROPERTY')
 
     def query(self, context):
         """
