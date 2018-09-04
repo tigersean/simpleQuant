@@ -30,8 +30,7 @@ util tool
 # bar
 from simpleQuant.Util.Util_bar import (util_make_hour_index,
                                     util_make_min_index, util_time_gap)
-# config
-from QUANTAXIS.QAUtil.QACfg import QA_util_cfg_initial, QA_util_get_cfg
+
 # date
 from simpleQuant.Util.Util_date import (util_date_int2str, util_date_stamp,
                                      util_date_str2int, util_date_today,
@@ -44,17 +43,17 @@ from simpleQuant.Util.Util_date import (util_date_int2str, util_date_stamp,
                                      util_time_now, util_time_stamp)
 # trade date
 from simpleQuant.Util.Util_date import (util_date_gap,
-                                           util_get_real_date,
-                                           util_get_real_datelist,
-                                           util_get_trade_gap,
-                                           util_get_trade_range,
-                                           util_if_trade,
-                                           util_if_tradetime,
-                                           util_get_next_day,
-                                           util_get_last_day,
-                                           util_get_order_datetime,
-                                           util_get_trade_datetime,
-                                           trade_date_sse)
+                                        util_get_real_date,
+                                        util_get_real_datelist,
+                                        util_get_trade_gap,
+                                        util_get_trade_range,
+                                        util_if_trade,
+                                        util_if_tradetime,
+                                        util_get_next_day,
+                                        util_get_last_day,
+                                        util_get_order_datetime,
+                                        util_get_trade_datetime,
+                                        trade_date_sse)
 # list function
 from simpleQuant.Util.Util_list import (util_diff_list,
                                      util_multi_demension_list)
@@ -66,7 +65,7 @@ from QUANTAXIS.QAUtil.QAParameter import (MARKET_TYPE, ORDER_STATUS, TRADE_STATU
                                           ACCOUNT_EVENT, BROKER_EVENT, EVENT_TYPE, MARKET_EVENT, ENGINE_EVENT,
                                           RUNNING_ENVIRONMENT, AMOUNT_MODEL, MARKET_ERROR)
 
-from simpleQuant.Util.QASetting import (QA_Setting, DATABASE, future_ip_list, QASETTING,
+from simpleQuant.Util.Util_setting import (Util_setting, future_ip_list, SETTING,
                                         info_ip_list, stock_ip_list, exclude_from_stock_ip_list)
 
 from simpleQuant.Util.Util_transform import (util_to_json_from_pandas,
@@ -76,3 +75,6 @@ from simpleQuant.Util.Util_transform import (util_to_json_from_pandas,
                                           util_to_pandas_from_list)
 
 from simpleQuant.Util.Localize import qa_path, setting_path, cache_path, download_path, log_path
+
+# log
+from simpleQuant.Util.Util_logs import (util_log_debug, util_log_expection, util_log_info)

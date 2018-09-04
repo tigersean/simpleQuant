@@ -25,8 +25,9 @@
 import json
 import os
 import configparser
-from simpleQuant.Account.user import QA_user_sign_in
-from simpleQuant.Util_setting.Localize import qa_path, setting_path
+from simpleQuant.Account.user import user_sign_in
+from simpleQuant.Util.Localize import qa_path, setting_path
+from simpleQuant.Util.Util_hdf5 import util_hdf5_setting
 
 
 
@@ -38,22 +39,26 @@ from simpleQuant.Util_setting.Localize import qa_path, setting_path
 
 CONFIGFILE_PATH = '{}{}{}'.format(setting_path, os.sep, 'config.ini')
 
+DEFAULT_HDF5_URI = ''
 
+DEFAULT_REDIS_URI = ''
+
+DEFAULT_SQLLITE_URI = ''
 class Util_setting():
     def __init__(self, uri=None):
-        self.mongo_uri = uri or self.get_config() or self.env_config() or DEFAULT_DB_URI
-        self.username = None
-        self.password = None
+        self.hdf5 = uri or self.get_config() or self.env_config() or DEFAULT_HDF5_URI
+        self.reids = None
+        self.sqllite = None
 
         # 加入配置文件地址
 
-    def get_config(self, section='MONGODB', option='uri', default_value=DEFAULT_DB_URI):
+    def get_config(self, section='HDF5', option='uri', default_value=DEFAULT_HDF5_URI):
         """[summary]
 
         Keyword Arguments:
             section {str} -- [description] (default: {'MONGODB'})
             option {str} -- [description] (default: {'uri'})
-            default_value {[type]} -- [description] (default: {DEFAULT_DB_URI})
+            default_value {[type]} -- [description] (default: {DEFAULT_HDF5_URI})
 
         Returns:
             [type] -- [description]
@@ -75,7 +80,7 @@ class Util_setting():
             f.close()
             return default_value
 
-    def set_config(self, section='MONGODB', option='uri', default_value=DEFAULT_DB_URI):
+    def set_config(self, section='HDF5', option='uri', default_value=DEFAULT_HDF5_URI):
         """[summary]
 
         Keyword Arguments:
@@ -148,11 +153,8 @@ class Util_setting():
 
     @property
     def client(self):
-        return QA_util_sql_mongo_setting(self.mongo_uri)
-
-    @property
-    def client_async(self):
-        return QA_util_sql_async_mongo_setting(self.mongo_uri)
+        return util_hdf5_setting(self.hdf5)
+   
 
     def change(self, ip, port):
         self.ip = ip
@@ -162,7 +164,7 @@ class Util_setting():
         return self
 
     def login(self, user_name, password):
-        user = QA_user_sign_in(user_name, password, self.client)
+        user = user_sign_in(user_name, password, self.client)
         if user is not None:
             self.user_name = user_name
             self.password = password
@@ -173,6 +175,10 @@ class Util_setting():
 
 
 SETTINGS = Util_setting()
+REDIS = SETTINGS.client.redis
+HDF5=SETTINGS.client.hdf5
+SQLLITE=SETTINGS.client.sqllite
+
 
 def exclude_from_stock_ip_list(exclude_ip_list):
     """ 从stock_ip_list删除列表exclude_ip_list中的ip

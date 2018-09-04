@@ -13,9 +13,9 @@ import numpy as np
 import pandas as pd
 from pyecharts import Kline, Bar, Grid
 
-from QUANTAXIS.QAUtil import (QA_util_log_info, QA_util_random_with_topic,
-                              QA_util_to_json_from_pandas)
-from QUANTAXIS.QAUtil.QADate import QA_util_to_datetime
+from simpleQuant.Util import (util_log_info, util_random_with_topic,
+                              util_to_json_from_pandas)
+from simpleQuant.Util.Util_date import util_to_datetime
 
 # todo 🛠基类名字 _quotation_base 小写是因为 不直接初始化， 建议改成抽象类
 
@@ -50,7 +50,7 @@ class _quotation_base():
         # 数据类型 可能的取值
 
         self.type = dtype
-        self.data_id = QA_util_random_with_topic('DATA', lens=3)
+        self.data_id = util_random_with_topic('DATA', lens=3)
 
         # 默认是不复权
         self.if_fq = if_fq
@@ -501,7 +501,7 @@ class _quotation_base():
         :return:  字典dict 类型
         '''
         try:
-            return self.dicts[(QA_util_to_datetime(time), str(code))]
+            return self.dicts[(util_to_datetime(time), str(code))]
         except Exception as e:
             raise e
 
@@ -537,7 +537,7 @@ class _quotation_base():
 
             kline.render(path_name)
             webbrowser.open(path_name)
-            QA_util_log_info(
+            util_log_info(
                 'The Pic has been saved to your path: %s' % path_name)
         else:
             data = []
@@ -581,7 +581,7 @@ class _quotation_base():
             grid.render(path_name)
 
             webbrowser.open(path_name)
-            QA_util_log_info(
+            util_log_info(
                 'The Pic has been saved to your path: {}'.format(path_name))
 
     def get(self, name):
@@ -676,7 +676,7 @@ class _quotation_base():
         """
         打印数据包的内容
         """
-        return QA_util_log_info(self.data)
+        return util_log_info(self.data)
 
     def to_list(self):
         """
@@ -700,7 +700,7 @@ class _quotation_base():
         """
         转换DataStruct为json
         """
-        return QA_util_to_json_from_pandas(self.data.reset_index())
+        return util_to_json_from_pandas(self.data.reset_index())
 
     def to_dict(self, orient='dict'):
         """
