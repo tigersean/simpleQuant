@@ -53,7 +53,7 @@ from simpleQuant.Util import (DATABASE, util_log_info,
                               util_to_json_from_pandas,
                               util_to_pandas_from_json, trade_date_sse)
 from simpleQuant.Util.Util_Date import _util_to_datetime
-from simpleQuant.Util.Parameter import FREQUENCE, MARKET_TYPE
+from simpleQuant.Parameter import FREQUENCE, MARKET_TYPE
 
 
 class QA_DataStruct_Stock_day(_quotation_base):
