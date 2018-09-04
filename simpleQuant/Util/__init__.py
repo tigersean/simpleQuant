@@ -75,3 +75,4 @@ from simpleQuant.Util.Util_transform import (util_to_json_from_pandas,
                                           util_to_pandas_from_json,
                                           util_to_pandas_from_list)
 
+from simpleQuant.Util.Localize import qa_path, setting_path, cache_path, download_path, log_path

@@ -1,4 +1,4 @@
-#coding :utf-8
+# coding=utf-8
 #
 # The MIT License (MIT)
 #
@@ -22,24 +22,28 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""
-该文件主要是负责一些对于code名称的处理
-"""
+
+from simpleQuant.Util.Util_logs import util_log_info
 
 
-def util_code_tostr(code):
-    """
-    将所有沪深股票从数字转化到6位的代码
+def QA_user_sign_in(name, password, client):
+    coll = client.quantaxis.user_list
+    cursor=coll.find({'username': name, 'password': password})
+    if (cursor.count() > 0):
+        QA_util_log_info('success login! your username is:' + str(name))
+        return cursor
+    else:
+        QA_util_log_info('Failed to login,please check your password ')
+        return None
 
-    因为有时候在csv等转换的时候,诸如 000001的股票会变成office强制转化成数字1
 
-    """
-    return '00000{}'.format(str(code)[0:6])[-6:]
-
-
-def util_code_tolist(code):
-    if isinstance(code, str):
-        return [util_code_tostr(code)]
-
-    elif isinstance(code, list):
-        return [util_code_tostr(item) for item in code]
+def QA_user_sign_up(name, password, client):
+    coll = client.quantaxis.user_list
+    if (coll.find({'username': name}).count() > 0):
+        print(name)
+        QA_util_log_info('user name is already exist')
+        return False
+    else:
+        coll.insert({'username': name, 'password': password})
+        QA_util_log_info('Success sign in! please login ')
+        return True

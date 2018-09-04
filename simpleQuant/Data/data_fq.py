@@ -28,10 +28,7 @@ import datetime
 
 import pandas as pd
 
-from QUANTAXIS.QAUtil import DATABASE, QA_util_log_info
-
-
-def QA_data_make_qfq(bfq_data, xdxr_data):
+def data_make_qfq(bfq_data, xdxr_data):
     '使用数据库数据进行复权'
     info = xdxr_data.query('category==1')
     bfq_data = bfq_data.assign(if_trade=1)
@@ -66,7 +63,7 @@ def QA_data_make_qfq(bfq_data, xdxr_data):
                                            'if_trade', 'category'], axis=1).query("open != 0")
 
 
-def QA_data_make_hfq(bfq_data, xdxr_data):
+def data_make_hfq(bfq_data, xdxr_data):
     '使用数据库数据进行复权'
     info = xdxr_data.query('category==1')
     bfq_data = bfq_data.assign(if_trade=1)
@@ -102,7 +99,7 @@ def QA_data_make_hfq(bfq_data, xdxr_data):
     return data.query('if_trade==1').drop(['fenhong', 'peigu', 'peigujia', 'songzhuangu'], axis=1).query("open != 0")
 
 
-def QA_data_stock_to_fq(__data, type_='01'):
+def data_stock_to_fq(__data, type_='01'):
 
     def __QA_fetch_stock_xdxr(code, format_='pd', collections=DATABASE.stock_xdxr):
         '获取股票除权信息/数据库'
