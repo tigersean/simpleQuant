@@ -78,3 +78,10 @@ from simpleQuant.Util.Localize import qa_path, setting_path, cache_path, downloa
 
 # log
 from simpleQuant.Util.Util_logs import (util_log_debug, util_log_expection, util_log_info)
+
+# RANDOM class
+from simpleQuant.Util.Util_random import util_random_with_topic
+
+# 网络相关
+from simpleQuant.Util.Util_webutil import util_web_ping
+from simpleQuant.Util.Util_mail import util_send_mail

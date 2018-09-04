@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 #
-# Copyright (c) 2016-2018 yutiansut/QUANTAXIS
+# Copyright (c) 2016-2018 yutiansut/simpleQuant
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -44,18 +44,16 @@ import numpy as np
 import pandas as pd
 from pyecharts import Kline
 
-from QUANTAXIS.QAData.base_datastruct import _quotation_base
-from QUANTAXIS.QAData.data_fq import QA_data_stock_to_fq
-from QUANTAXIS.QAData.data_resample import QA_data_tick_resample, QA_data_day_resample, QA_data_min_resample
-from QUANTAXIS.QAData.proto import stock_day_pb2  # protobuf import
-from QUANTAXIS.QAData.proto import stock_min_pb2
-from QUANTAXIS.QAIndicator import EMA, HHV, LLV, SMA
-from QUANTAXIS.QAUtil import (DATABASE, QA_util_log_info,
-                              QA_util_random_with_topic,
-                              QA_util_to_json_from_pandas,
-                              QA_util_to_pandas_from_json, trade_date_sse)
-from QUANTAXIS.QAUtil.QADate import QA_util_to_datetime
-from QUANTAXIS.QAUtil.QAParameter import FREQUENCE, MARKET_TYPE
+from simpleQuant.Data.base_datastruct import _quotation_base
+from simpleQuant.Data.data_fq import data_stock_to_fq
+from simpleQuant.Data.data_resample import QA_data_tick_resample, QA_data_day_resample, QA_data_min_resample
+from simpleQuant.Indicator import EMA, HHV, LLV, SMA
+from simpleQuant.Util import (DATABASE, util_log_info,
+                              util_random_with_topic,
+                              util_to_json_from_pandas,
+                              util_to_pandas_from_json, trade_date_sse)
+from simpleQuant.Util.Util_Date import _util_to_datetime
+from simpleQuant.Util.Parameter import FREQUENCE, MARKET_TYPE
 
 
 class QA_DataStruct_Stock_day(_quotation_base):
@@ -96,9 +94,9 @@ class QA_DataStruct_Stock_day(_quotation_base):
             #         lambda x: QA_data_stock_to_fq(self.data[self.data['code'] == x]), self.code))), self.type, 'qfq')
             else:
                 return self.new(
-                    self.groupby(level=1).apply(QA_data_stock_to_fq, 'qfq'), self.type, 'qfq')
+                    self.groupby(level=1).apply(data_stock_to_fq, 'qfq'), self.type, 'qfq')
         else:
-            QA_util_log_info(
+            util_log_info(
                 'none support type for qfq Current type is: %s' % self.if_fq)
             return self
 
@@ -110,11 +108,11 @@ class QA_DataStruct_Stock_day(_quotation_base):
                 return self
             else:
                 return self.new(
-                    self.groupby(level=1).apply(QA_data_stock_to_fq, 'hfq'), self.type, 'hfq')
+                    self.groupby(level=1).apply(data_stock_to_fq, 'hfq'), self.type, 'hfq')
                 # return self.new(pd.concat(list(map(lambda x: QA_data_stock_to_fq(
                 #     self.data[self.data['code'] == x], 'hfq'), self.code))), self.type, 'hfq')
         else:
-            QA_util_log_info(
+            util_log_info(
                 'none support type for qfq Current type is: %s' % self.if_fq)
             return self
 
@@ -222,10 +220,10 @@ class QA_DataStruct_Stock_min(_quotation_base):
             #     return data
             else:
                 return self.new(
-                    self.groupby(level=1).apply(QA_data_stock_to_fq, 'qfq'), self.type, 'qfq')
+                    self.groupby(level=1).apply(data_stock_to_fq, 'qfq'), self.type, 'qfq')
 
         else:
-            QA_util_log_info(
+            util_log_info(
                 'none support type for qfq Current type is:%s' % self.if_fq)
             return self
 
@@ -236,13 +234,13 @@ class QA_DataStruct_Stock_min(_quotation_base):
                 return self
             else:
                 return self.new(
-                    self.groupby(level=1).apply(QA_data_stock_to_fq, 'hfq'), self.type, 'hfq')
+                    self.groupby(level=1).apply(data_stock_to_fq, 'hfq'), self.type, 'hfq')
                 # data = QA_DataStruct_Stock_min(pd.concat(list(map(lambda x: QA_data_stock_to_fq(
                 #     self.data[self.data['code'] == x], 'hfq'), self.code))).set_index(['datetime', 'code'], drop=False))
                 # data.if_fq = 'hfq'
                 # return data
         else:
-            QA_util_log_info(
+            util_log_info(
                 'none support type for qfq Current type is:%s' % self.if_fq)
             return self
 
@@ -637,7 +635,7 @@ class _realtime_base():
         if isinstance(market_data, dict):
             self.data = market_data
         elif isinstance(market_data, pd.DataFrame):
-            self.data = QA_util_to_json_from_pandas(market_data)
+            self.data = util_to_json_from_pandas(market_data)
 
     @property
     def open(self):
