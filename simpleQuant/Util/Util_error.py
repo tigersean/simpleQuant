@@ -1,4 +1,4 @@
-#coding :utf-8
+# coding:utf-8
 #
 # The MIT License (MIT)
 #
@@ -21,25 +21,37 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+"""QUANTAXIS 的error类
 
 """
-该文件主要是负责一些对于code名称的处理
-"""
 
 
-def code_tostr(code):
-    """
-    将所有沪深股票从数字转化到6位的代码
-
-    因为有时候在csv等转换的时候,诸如 000001的股票会变成office强制转化成数字1
-
-    """
-    return '00000{}'.format(str(code)[0:6])[-6:]
+class QAError_fetch_data(RuntimeError):
+    def __init__(self, res):
+        RuntimeError.__init__(self, 'QA FETCH DATA ERROR', res)
 
 
-def code_tolist(code):
-    if isinstance(code, str):
-        return [util_code_tostr(code)]
+class QAError_no_data_in_database(RuntimeError):
+    def __init__(self, res):
+        RuntimeError.__init__(self, 'QA FETCH NO DATA ERROR', res)
 
-    elif isinstance(code, list):
-        return [util_code_tostr(item) for item in code]
+
+class QAError_crawl_data_web(RuntimeError):
+    def __init__(self, res):
+        RuntimeError.__init__(self, 'QA CRAWLER ERROR', res)
+
+
+class QAError_database_connection(RuntimeError):
+    def __init__(self, res):
+        RuntimeError.__init__(self, 'QA DATABASE CONNECTION ERROR', res)
+
+
+class QAError_web_connection(RuntimeError):
+    def __init__(self, res):
+        RuntimeError.__init__(self, 'QA WEB CONNECTION ERROR', res)
+
+
+class QAError_market_enging_down(RuntimeError):
+    def __init__(self, res):
+        RuntimeError.__init__(self, 'QA MARKET ENGING DOWN ERROR', res)
+
