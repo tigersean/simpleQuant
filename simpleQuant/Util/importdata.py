@@ -41,8 +41,10 @@ def ImportStockName(connect):
     oldStockDict = {}
     market={'sz','sh'}
     newStockDict=fetch.fetch_get_stock_list().to_dict('index')
-    print(newStockDict)
-    a = cur.execute("select stockid, code, name, valid, market from stock") 
+    cur.execute("create table if not exists stock_info (id varchar(8) PRIMARY KEY,\
+    code varchar(6) ,name varchar(20),market char(8),type smallint,valid smallint,\
+    startDate integer,endDate integer)")
+    a = cur.execute("select id, code, name, valid, market from stock_info") 
     a = a.fetchall()
 
     for oldstock in a:
@@ -51,26 +53,26 @@ def ImportStockName(connect):
         
         #新的代码表中无此股票，则置为无效
         if (oldvalid == 1) and ({oldcode,market} not in newStockDict):
-            cur.execute("update stock set valid=0 where stockid=%i" % oldstockid)
+            cur.execute("update stock_info set valid=0 where id=%i" % oldstockid)
         
         #股票名称发生变化，更新股票名称;如果原无效，则置为有效
-        if {oldcode, market} in newStockDict:
+        if (oldcode, market) in newStockDict:
             if oldname != oldcode.name:
-                cur.execute("update stock set name='%s' where stockid=%i" % 
+                cur.execute("update stock_info set name='%s' where id=%i" % 
                             (oldcode.name, oldstockid))
             if oldvalid == 0:
-                cur.execute("update stock set valid=1, endDate=99999999 where stockid=%i" % oldstockid)
+                cur.execute("update stock_info set valid=1, endDate=99999999 where id=%i" % oldstockid)
 
     
     today = datetime.date.today()
     today = today.year * 10000 + today.month * 100 + today.day
     count = 0
-    for code in newStockDict:
+    for (code, market) in newStockDict:
         if code not in oldStockDict:
             count += 1
-            sql = "insert into Stock(marketid, code, name, type, valid, startDate, endDate) \
-                   values (%s, '%s', '%s', %s, %s, %s, %s)" \
-                   % (marketid, code, newStockDict[code], codeDict[codepre], 1, today, 99999999)
+            sql = "insert into stock_info(id, code, name, type, valid, startDate, endDate) \
+                   values ('%s', '%s', '%s', '%s', '%s', %s, %s)" \
+                   % (market+code, code, newStockDict[(code,market)]['name'], newStockDict[(code,market)]['sse'], 1, today, 99999999)
             cur.execute(sql)
         pass            
     
@@ -96,15 +98,10 @@ def ImportDayData(connect, src_dir, dest_dir):
             group = h5fileDict[market].create_group("/", "data")
         h5groupDict[market] = group
     
-    dirDict = {'SH': src_dir + "/lday",
-               'SZ': src_dir + "/lday"}
+    dirDict = {'sh': src_dir + "/lday",
+               'sz': src_dir + "/lday"}
     
-    a = cur.execute("select marketid, market from market")
-    marketDict = {}
-    for mark in a:
-        marketDict[mark[0]] = mark[1].upper()
-
-    a = cur.execute("select stockid, marketid, code, valid, type from stock order by marketid")
+    a = cur.execute("select stockid, market, code, valid, type from stock order by id")
     a = a.fetchall()
     stock_count = 0
     record_count = 0
@@ -115,10 +112,6 @@ def ImportDayData(connect, src_dir, dest_dir):
         valid, stktype = stock[3], stock[4]
         market = marketDict[marketid]
         tablename = market + code
-        filename = dirDict[market] + "\\" + tablename.lower() + ".day"
-        
-        if not os.path.exists(filename):
-            continue
         
         try:
             table = h5fileDict[market].get_node(h5groupDict[market], tablename)
@@ -134,52 +127,7 @@ def ImportDayData(connect, src_dir, dest_dir):
         
         update_flag = False
         row = table.row
-        with open(filename, 'rb') as src_file:
-            def get_date(pos):
-                src_file.seek(pos * 32, SEEK_SET)
-                data = src_file.read(4)
-                return  struct.unpack('i', data)[0]
-            
-            def find_pos():
-                src_file.seek(0, SEEK_END)
-                pos = src_file.tell()
-                total = pos // 32
-                if lastdatetime is None:
-                    return total, 0
-                
-                low, high = 0, total - 1
-                mid = high // 2
-                while mid <= high:
-                    cur_date = get_date(low)
-                    if cur_date > lastdatetime:
-                        mid = low
-                        break
-                    
-                    cur_date = get_date(high)
-                    if cur_date <= lastdatetime:
-                        mid = high + 1
-                        break
-                    
-                    cur_date = get_date(mid)
-                    if cur_date <= lastdatetime:
-                        low = mid + 1
-                    else: 
-                        high = mid - 1
-                    
-                    mid = (low + high) // 2
-                    
-                return total, mid
-            
-            file_total, pos = find_pos()
-            if pos < file_total:
-                src_file.seek(pos * 32, SEEK_SET)
-                
-                data = src_file.read(32)
-                while data:
-                    record = struct.unpack('iiiiifii', data)
-                    if 0 not in record[1:5]:
-                        if record[2] >= record[1] >= record[3] \
-                              and record[2] >= record[4] >= record[3]:
+        fetch.fetch_get_stock_day()
                             row['datetime'] = record[0] * 10000
                             row['openPrice'] = record[1] * 10
                             row['highPrice'] = record[2] * 10
@@ -197,7 +145,6 @@ def ImportDayData(connect, src_dir, dest_dir):
                             if not update_flag:
                                 update_flag = True
                     
-                    data = src_file.read(32)
                                 
         if update_flag:
             stock_count += 1
@@ -574,7 +521,7 @@ if __name__ == '__main__':
     
     src_dir = "/backup/extraHome/quantification/data"
     dest_dir = "/backup/extraHome/quantification/data"
-    
+    dest_dir="/Volumes/Macintosh HD/Users/jungong/workspace/data"
     connect = sqlite3.connect(dest_dir + "/stock.db")
     
     
