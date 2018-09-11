@@ -60,12 +60,12 @@ from simpleQuant.Util.Util_list import (util_diff_list,
 
 from simpleQuant.Util.Util_code import util_code_tostr, util_code_tolist
 
-from QUANTAXIS.QAUtil.QAParameter import (MARKET_TYPE, ORDER_STATUS, TRADE_STATUS, DATASOURCE, OUTPUT_FORMAT,
+from simpleQuant.Parameter import (MARKET_TYPE, ORDER_STATUS, TRADE_STATUS, DATASOURCE, OUTPUT_FORMAT,
                                           ORDER_DIRECTION, ORDER_MODEL, ORDER_EVENT, FREQUENCE, BROKER_TYPE,
                                           ACCOUNT_EVENT, BROKER_EVENT, EVENT_TYPE, MARKET_EVENT, ENGINE_EVENT,
                                           RUNNING_ENVIRONMENT, AMOUNT_MODEL, MARKET_ERROR)
 
-from simpleQuant.Util.Util_setting import (Util_setting, future_ip_list, SETTING,
+from simpleQuant.Util.Util_setting import (Util_setting, future_ip_list, SETTINGS,
                                         info_ip_list, stock_ip_list, exclude_from_stock_ip_list)
 
 from simpleQuant.Util.Util_transform import (util_to_json_from_pandas,

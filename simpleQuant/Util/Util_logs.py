@@ -22,16 +22,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""
-QUANTAXIS Log Module
-@yutiansut
-
-QA_util_log_x is under [QAStandard#0.0.2@602-x] Protocol
-QA_util_log_info()
-QA_util_log_debug()
-QA_util_log_expection()
-"""
-
 import configparser
 import datetime
 import os
@@ -77,14 +67,15 @@ logging.basicConfig(level=logging.DEBUG,
                         '%Y-%m-%d-%H-%M-%S'))),
                     filemode='w',
                     )
+
+                    
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
-formatter = logging.Formatter('QUANTAXIS>> %(message)s')
+formatter = logging.Formatter('simpleQuant: %(message)s')
 console.setFormatter(formatter)
 logging.getLogger('').addHandler(console)
 
 
-logging.info('start QUANTAXIS')
 
 
 def util_log_debug(logs, ui_log = None, ui_progress = None):
@@ -126,3 +117,5 @@ def util_log_expection(logs, ui_log = None, ui_progress = None):
     QA_util_log_x is under [QAStandard#0.0.2@602-x] Protocol
     """
     logging.exception(logs)
+
+

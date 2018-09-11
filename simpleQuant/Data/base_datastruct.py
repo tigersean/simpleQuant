@@ -23,12 +23,12 @@ from simpleQuant.Util.Util_date import util_to_datetime
 class _quotation_base():
     '''
     一个自适应股票/期货/指数的基础类 , 抽象类， 不能直接初始化，必须通过下面的类继承实现
-    🥑index_day  字符串 初始化  👤👥QA_DataStruct_Index_day继承
-    🥑index_min  字符串 初始化  👤👥QA_DataStruct_Index_min继承
-    🥑stock_day  字符串 初始化  👤👥QA_DataStruct_Stock_day继承
-    🥑stock_min  字符串 初始化  👤👥QA_DataStruct_Stock_min继承
-    🥑future_min 字符串 初始化  👤👥QA_DataStruct_Future_min继承
-    🥑future_day 字符串 初始化  👤👥QA_DataStruct_Future_day继承
+    index_day  字符串 初始化  DataStruct_Index_day继承
+    index_min  字符串 初始化  DataStruct_Index_min继承
+    stock_day  字符串 初始化  DataStruct_Stock_day继承
+    stock_min  字符串 初始化  DataStruct_Stock_min继承
+    future_min 字符串 初始化  DataStruct_Future_min继承
+    future_day 字符串 初始化  DataStruct_Future_day继承
     '''
 
     # 🛠todo  DataFrame 改成 df 变量名字

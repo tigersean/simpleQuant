@@ -47,7 +47,7 @@ DEFAULT_SQLLITE_URI = ''
 class Util_setting():
     def __init__(self, uri=None):
         self.hdf5 = uri or self.get_config() or self.env_config() or DEFAULT_HDF5_URI
-        self.reids = None
+        self.redis = None
         self.sqllite = None
 
         # 加入配置文件地址
@@ -175,9 +175,9 @@ class Util_setting():
 
 
 SETTINGS = Util_setting()
-REDIS = SETTINGS.client.redis
-HDF5=SETTINGS.client.hdf5
-SQLLITE=SETTINGS.client.sqllite
+REDIS = SETTINGS.redis
+HDF5=SETTINGS.hdf5
+SQLLITE=SETTINGS.sqllite
 
 
 def exclude_from_stock_ip_list(exclude_ip_list):
@@ -191,12 +191,21 @@ def exclude_from_stock_ip_list(exclude_ip_list):
             stock_ip_list.remove(exc)
 
 
-info_ip_list = [{'ip': '101.227.73.20', 'port': 7709}
+info_ip_list = [{'ip': '124.14.104.60', 'port': 7709},
+                {'ip': '112.14.104.66', 'port': 7709},
+                {'ip': '112.95.140.92', 'port': 7709},
+                {'ip': '112.95.140.93', 'port': 7709},
+                {'ip': '112.95.140.74', 'port': 7709},
+                {'ip': '112.14.104.53', 'port': 7709}
 ]
 
 
 stock_ip_list = [
-    {'ip': '61.152.107.168','port':7721 }    
+    {'ip': '121.14.104.63','port':7721},
+    {'ip': '119.147.80.148','port':7721},
+    {'ip': '112.95.140.96','port':7721},
+    {'ip': '221.139.150.61','port':7721}
+    
 ]
 
 future_ip_list = [

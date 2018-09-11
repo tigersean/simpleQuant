@@ -33,7 +33,7 @@ from simpleQuant.Util import (util_date_stamp, util_date_str2int,
                               util_get_real_datelist, util_get_trade_gap,
                               util_log_info, util_time_stamp,
                               util_web_ping, future_ip_list, stock_ip_list, exclude_from_stock_ip_list, Util_setting,
-                              trade_date_sse)
+                              trade_date_sse,SETTINGS)
 
 from simpleQuant.Fetch.base import _select_market_code, _select_type
 
@@ -98,7 +98,7 @@ def select_best_ip():
     # 删除exclude ip
     import json
     null = None
-    qasetting = QASETTING
+    qasetting = SETTINGS
     exclude_ip = {'ip': '1.1.1.1', 'port': 7709}
     default_ip = {'stock': {'ip': None, 'port': None},
                   'future': {'ip': None, 'port': None}}

@@ -25,7 +25,7 @@ from copy import deepcopy, copy
 
 import pandas as pd
 
-from QUANTAXIS.QAFetch.QATdx import QA_fetch_get_stock_realtime
+from simpleQuant.Fetch.tdx_fetch import QA_fetch_get_stock_realtime
 
 
 class QA_DataStruct_Stock_block():

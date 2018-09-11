@@ -28,10 +28,8 @@ import math
 import numpy as np
 import pandas as pd
 
-from simpleQuant.Util.Util_date import (util_date_gap,
-                                           util_get_real_datelist,
-                                           util_get_trade_range,
-                                           util_if_trade, trade_date_sse)
+from simpleQuant.Util.Util_date import (util_date_gap, util_get_real_datelist, 
+                                        util_get_trade_range,util_if_trade, trade_date_sse)
 
 
 
@@ -93,16 +91,16 @@ def util_time_gap(time, gap, methods, type_):
     day_gap = math.ceil(gap / min_len)
 
     if methods in ['>', 'gt']:
-        data = pd.concat([pd.DataFrame(QA_util_make_min_index(day, type_)) for day in trade_date_sse[trade_date_sse.index(str(datetime.datetime.strptime(
+        data = pd.concat([pd.DataFrame(util_make_min_index(day, type_)) for day in trade_date_sse[trade_date_sse.index(str(datetime.datetime.strptime(
             time, '%Y-%m-%d %H:%M:%S').date())):trade_date_sse.index(str(datetime.datetime.strptime(time, '%Y-%m-%d %H:%M:%S').date())) + day_gap + 1]]).reset_index()
         return np.asarray(data[data[0] > time].head(gap)[0].apply(lambda x: str(x))).tolist()[-1]
     elif methods in ['>=', 'gte']:
-        data = pd.concat([pd.DataFrame(QA_util_make_min_index(day, type_)) for day in trade_date_sse[trade_date_sse.index(str(datetime.datetime.strptime(
+        data = pd.concat([pd.DataFrame(util_make_min_index(day, type_)) for day in trade_date_sse[trade_date_sse.index(str(datetime.datetime.strptime(
             time, '%Y-%m-%d %H:%M:%S').date())):trade_date_sse.index(str(datetime.datetime.strptime(time, '%Y-%m-%d %H:%M:%S').date())) + day_gap + 1]]).reset_index()
 
         return np.asarray(data[data[0] >= time].head(gap)[0].apply(lambda x: str(x))).tolist()[-1]
     elif methods in ['<', 'lt']:
-        data = pd.concat([pd.DataFrame(QA_util_make_min_index(day, type_)) for day in trade_date_sse[trade_date_sse.index(str(datetime.datetime.strptime(
+        data = pd.concat([pd.DataFrame(util_make_min_index(day, type_)) for day in trade_date_sse[trade_date_sse.index(str(datetime.datetime.strptime(
             time, '%Y-%m-%d %H:%M:%S').date())) - day_gap:trade_date_sse.index(str(datetime.datetime.strptime(time, '%Y-%m-%d %H:%M:%S').date())) + 1]]).reset_index()
 
         return np.asarray(data[data[0] < time].tail(gap)[0].apply(lambda x: str(x))).tolist()[0]
