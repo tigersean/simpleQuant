@@ -88,8 +88,8 @@ def ImportDayData(connect, dest_dir):
     """
     cur = connect.cursor()
     today = datetime.date.today()
-    h5fileDict = {'SH': tb.open_file(dest_dir + "/sh_day.h5", "a", filters=tb.Filters(complevel=9,complib='blosc', shuffle=True)),
-                  'SZ': tb.open_file(dest_dir + "/sz_day.h5", "a", filters=tb.Filters(complevel=9,complib='blosc', shuffle=True))}
+    h5fileDict = {'sh': tb.open_file(dest_dir + "/sh_day.h5", "a", filters=tb.Filters(complevel=9,complib='blosc', shuffle=True)),
+                  'sz': tb.open_file(dest_dir + "/sz_day.h5", "a", filters=tb.Filters(complevel=9,complib='blosc', shuffle=True))}
     
     h5groupDict = {}
     for market in h5fileDict:
@@ -130,6 +130,9 @@ def ImportDayData(connect, dest_dir):
         row = table.row
         data=fetch.fetch_get_stock_day(code, parse(str(lastdatetime)).strftime('%Y-%m-%d'),
                                     today.strftime('%Y-%m-%d'))
+        if (data is None): 
+            print(code)
+            continue
         for i, record in data.iterrows():            
             row['datetime'] = fmtdatestr(record['date'])
             row['open'] = record['open']
@@ -247,6 +250,7 @@ def ImportMinData(connect, src_dir, dest_dir, data_type):
     connect.commit()
                                 
     for market in h5fileDict:
+        h5fileDict[market].flush()
         h5fileDict[market].close()
         
     print("\n共导入股票数:", stock_count)
@@ -454,8 +458,8 @@ if __name__ == '__main__':
     starttime = time.time()
     
     src_dir = "/backup/extraHome/quantification/data"
-    dest_dir = "/backup/extraHome/quantification/data"
-    #dest_dir="/Volumes/Macintosh HD/Users/jungong/workspace/data"
+    #dest_dir = "/backup/extraHome/quantification/data"
+    dest_dir="/Users/jun.gong/stock_data"
     connect = sqlite3.connect(dest_dir + "/stock.db")
     
     
