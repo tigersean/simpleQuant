@@ -5,6 +5,7 @@ import datetime
 import math
 import sys
 import numpy as np
+from dateutil.parser import parse
 
 import tables as tb
 
@@ -21,12 +22,12 @@ def ProgressBar(cur, total):
 
 class H5Record(tb.IsDescription):
     datetime = tb.UInt64Col()        #IGNORE:E1101
-    openPrice = tb.UInt32Col()       #IGNORE:E1101
-    highPrice = tb.UInt32Col()       #IGNORE:E1101
-    lowPrice = tb.UInt32Col()        #IGNORE:E1101
-    closePrice = tb.UInt32Col()      #IGNORE:E1101
-    transAmount = tb.UInt64Col()     #IGNORE:E1101
-    transCount = tb.UInt64Col()      #IGNORE:E1101
+    open = tb.UInt32Col()       #IGNORE:E1101
+    high = tb.UInt32Col()       #IGNORE:E1101
+    low = tb.UInt32Col()        #IGNORE:E1101
+    close = tb.UInt32Col()      #IGNORE:E1101
+    vol = tb.UInt64Col()     #IGNORE:E1101
+    amount = tb.UInt64Col()      #IGNORE:E1101
     
 class H5Index(tb.IsDescription):
     datetime = tb.UInt64Col()        #IGNORE:E1101
@@ -48,18 +49,18 @@ def ImportStockName(connect):
     a = a.fetchall()
 
     for oldstock in a:
-        oldstockid, oldcode, oldname, oldvalid, market = oldstock[0], oldstock[1], oldstock[2], int(oldstock[3]),oldstock[4]
+        oldstockid, oldcode, oldname, oldvalid, market = oldstock[0], oldstock[1], oldstock[2], int(oldstock[3]), oldstock[4]
         oldStockDict[oldcode] = oldstockid
         
         #新的代码表中无此股票，则置为无效
-        if (oldvalid == 1) and ({oldcode,market} not in newStockDict):
-            cur.execute("update stock_info set valid=0 where id=%i" % oldstockid)
+        if (oldvalid == 1) and ((oldcode,market) not in newStockDict):            
+            cur.execute("update stock_info set valid=0 where id=%s" % oldstockid)
         
         #股票名称发生变化，更新股票名称;如果原无效，则置为有效
         if (oldcode, market) in newStockDict:
-            if oldname != oldcode.name:
-                cur.execute("update stock_info set name='%s' where id=%i" % 
-                            (oldcode.name, oldstockid))
+            if oldname != newStockDict[(oldcode,market)]['name']:
+                cur.execute("update stock_info set name='%s' where id=%s" % 
+                            (newStockDict[(oldcode,market)]['name'], oldstockid))
             if oldvalid == 0:
                 cur.execute("update stock_info set valid=1, endDate=99999999 where id=%i" % oldstockid)
 
@@ -70,9 +71,9 @@ def ImportStockName(connect):
     for (code, market) in newStockDict:
         if code not in oldStockDict:
             count += 1
-            sql = "insert into stock_info(id, code, name, type, valid, startDate, endDate) \
-                   values ('%s', '%s', '%s', '%s', '%s', %s, %s)" \
-                   % (market+code, code, newStockDict[(code,market)]['name'], newStockDict[(code,market)]['sse'], 1, today, 99999999)
+            sql = "insert into stock_info(id, code, name, market, type, valid, startDate, endDate) \
+                   values ('%s', '%s', '%s', '%s', '%i', '%i', %i, %i)" \
+                   % (market+code, code, newStockDict[(code,market)]['name'], newStockDict[(code,market)]['sse'], 0, 1, today, 99999999)
             cur.execute(sql)
         pass            
     
@@ -81,14 +82,14 @@ def ImportStockName(connect):
     cur.close()    
 
 
-def ImportDayData(connect, src_dir, dest_dir):
+def ImportDayData(connect, dest_dir):
     """
     导入通达信日线数据，只导入基础信息数据库中存在的股票
     """
     cur = connect.cursor()
-    
-    h5fileDict = {'SH': tb.open_file(dest_dir + "/sh_day.h5", "a", filters=tb.Filters(complevel=9,complib='blosc5', shuffle=True)),
-                  'SZ': tb.open_file(dest_dir + "/sz_day.h5", "a", filters=tb.Filters(complevel=9,complib='blosc5', shuffle=True))}
+    today = datetime.date.today()
+    h5fileDict = {'SH': tb.open_file(dest_dir + "/sh_day.h5", "a", filters=tb.Filters(complevel=9,complib='blosc', shuffle=True)),
+                  'SZ': tb.open_file(dest_dir + "/sz_day.h5", "a", filters=tb.Filters(complevel=9,complib='blosc', shuffle=True))}
     
     h5groupDict = {}
     for market in h5fileDict:
@@ -96,22 +97,22 @@ def ImportDayData(connect, src_dir, dest_dir):
             group = h5fileDict[market].get_node("/", "data")
         except:
             group = h5fileDict[market].create_group("/", "data")
-        h5groupDict[market] = group
+        h5groupDict[market] = group  
     
-    dirDict = {'sh': src_dir + "/lday",
-               'sz': src_dir + "/lday"}
     
-    a = cur.execute("select stockid, market, code, valid, type from stock order by id")
+    a = cur.execute("select id, market, code, valid, type from stock_info order by id")
     a = a.fetchall()
     stock_count = 0
     record_count = 0
     total = len(a)
     for i, stock in enumerate(a):
+        def fmtdatestr(datetime):
+            return int(datetime.replace('-',''))
+
         ProgressBar(i+1, total)
         stockid, marketid, code = stock[0], stock[1], stock[2]
-        valid, stktype = stock[3], stock[4]
-        market = marketDict[marketid]
-        tablename = market + code
+        valid, stktype = stock[3], stock[4]        
+        tablename = marketid + code
         
         try:
             table = h5fileDict[market].get_node(h5groupDict[market], tablename)
@@ -123,37 +124,34 @@ def ImportDayData(connect, src_dir, dest_dir):
             lastdatetime = table[-1]['datetime']/10000
         else:
             startdate = None
-            lastdatetime = None 
+            lastdatetime = 19900101
         
         update_flag = False
         row = table.row
-        fetch.fetch_get_stock_day()
-                            row['datetime'] = record[0] * 10000
-                            row['openPrice'] = record[1] * 10
-                            row['highPrice'] = record[2] * 10
-                            row['lowPrice'] = record[3] * 10
-                            row['closePrice'] = record[4] * 10
-                            row['transAmount'] = round(record[5] * 0.001)
-                            if stktype == 2:
-                                #指数
-                                row['transCount'] = record[6]
-                            else:
-                                row['transCount'] = round(record[6] * 0.01)
-                                
-                            row.append()
-                            record_count += 1
-                            if not update_flag:
-                                update_flag = True
-                    
+        data=fetch.fetch_get_stock_day(code, parse(str(lastdatetime)).strftime('%Y-%m-%d'),
+                                    today.strftime('%Y-%m-%d'))
+        for i, record in data.iterrows():            
+            row['datetime'] = fmtdatestr(record['date'])
+            row['open'] = record['open']
+            row['high'] = record['high']
+            row['low'] = record['low']
+            row['close'] = record['close']
+            row['vol'] = record['vol']
+            row['amount'] = record['amount']
+            row.append()
+            record_count +=1
+            if not update_flag:
+                update_flag = True
                                 
         if update_flag:
             stock_count += 1
-            table.flush()
+            if (stock_count%100==0):
+                table.flush()
             
         if startdate is not None and valid == 0:
             cur.execute("update stock set valid=1, startdate=%i, enddate=%i where stockid=%i" %
                         (startdate, 99999999, stockid))
-        
+    table.flush()    
     connect.commit()
                                 
     for market in h5fileDict:
@@ -175,19 +173,13 @@ def ImportMinData(connect, src_dir, dest_dir, data_type):
     
     if data_type == '1min':
         print("导入1分钟数据")
-        h5fileDict = {'SH': tb.open_file(dest_dir + "\\sh_1min.h5", "a", filters=tb.Filters(complevel=9,complib='zlib', shuffle=True)),
-                      'SZ': tb.open_file(dest_dir + "\\sz_1min.h5", "a", filters=tb.Filters(complevel=9,complib='zlib', shuffle=True))}
-        dirDict = {'SH': src_dir + "\\vipdoc\\sh\\minline",
-                   'SZ': src_dir + "\\vipdoc\\sz\minline"}
-        file_suffix = '.lc1'
+        h5fileDict = {'sh': tb.open_file(dest_dir + "/sh_1min.h5", "a", filters=tb.Filters(complevel=9,complib='zlib', shuffle=True)),
+                      'sz': tb.open_file(dest_dir + "/sz_1min.h5", "a", filters=tb.Filters(complevel=9,complib='zlib', shuffle=True))}
+        
     else:
         print("导入5分钟数据")
-        h5fileDict = {'SH': tb.open_file(dest_dir + "\\sh_5min.h5", "a", filters=tb.Filters(complevel=9,complib='zlib', shuffle=True)),
-                      'SZ': tb.open_file(dest_dir + "\\sz_5min.h5", "a", filters=tb.Filters(complevel=9,complib='zlib', shuffle=True))}
-        dirDict = {'SH': src_dir + "\\vipdoc\\sh\\fzline",
-                   'SZ': src_dir + "\\vipdoc\\sz\fzline"}
-        file_suffix = '.lc5'
-        
+        h5fileDict = {'sh': tb.open_file(dest_dir + "/sh_5min.h5", "a", filters=tb.Filters(complevel=9,complib='zlib', shuffle=True)),
+                      'sz': tb.open_file(dest_dir + "/sz_5min.h5", "a", filters=tb.Filters(complevel=9,complib='zlib', shuffle=True))}
     
     h5groupDict = {}
     for market in h5fileDict:
@@ -213,7 +205,7 @@ def ImportMinData(connect, src_dir, dest_dir, data_type):
         marketid, code, stktype = stock[0], stock[1], stock[2]
         market = marketDict[marketid]
         tablename = market + code
-        filename = dirDict[market] + "\\" + tablename.lower() + file_suffix
+        filename = dirDict[market] + "/" + tablename.lower() + file_suffix
         
         if not os.path.exists(filename):
             continue
@@ -230,85 +222,27 @@ def ImportMinData(connect, src_dir, dest_dir, data_type):
         
         update_flag = False
         row = table.row
-        with open(filename, 'rb') as src_file:
-            def trans_date(yymm, hhmm):
-                tmp_date = yymm >> 11
-                remainder = yymm & 0x7ff
-                year = tmp_date + 2004
-                month = remainder // 100
-                day = remainder % 100
-                hh = hhmm // 60
-                mm = hhmm % 60
-                return year * 100000000 + month * 1000000 + day * 10000 + hh * 100 + mm
-            
-            def get_date(pos):
-                src_file.seek(pos * 32, SEEK_SET)
-                data = src_file.read(4)
-                a = struct.unpack('hh', data)
-                return trans_date(a[0], a[1])
-            
-            def find_pos():
-                src_file.seek(0, SEEK_END)
-                pos = src_file.tell()
-                total = pos // 32
-                if lastdatetime is None:
-                    return total, 0
-                
-                low, high = 0, total - 1
-                mid = high // 2
-                while mid <= high:
-                    cur_date = get_date(low)
-                    if cur_date > lastdatetime:
-                        mid = low
-                        break
-                    
-                    cur_date = get_date(high)
-                    if cur_date <= lastdatetime:
-                        mid = high + 1
-                        break
-                    
-                    cur_date = get_date(mid)
-                    if cur_date <= lastdatetime:
-                        low = mid + 1
-                    else: 
-                        high = mid - 1
-                    
-                    mid = (low + high) // 2
-                    
-                return total, mid
-            
-            file_total, pos = find_pos()
-            if pos < file_total:
-                src_file.seek(pos * 32, SEEK_SET)
-                
-                data = src_file.read(32)
-                while data:
-                    record = struct.unpack('hhfffffii', data)
-                    if 0 not in record[2:6]:
-                        if record[3] >= record[2] >= record[4] \
-                              and record[3] >= record[5] >= record[4]:
-                            row['datetime'] = trans_date(record[0], record[1])
-                            row['openPrice'] = record[2] * 1000
-                            row['highPrice'] = record[3] * 1000
-                            row['lowPrice'] = record[4] * 1000
-                            row['closePrice'] = record[5] * 1000
-                            row['transAmount'] = round(record[6] * 0.001)
-                            if stktype == 2:
-                                #指数
-                                row['transCount'] = record[7]
-                            else:
-                                row['transCount'] = round(record[6] * 0.01)
-                                
-                            row.append()
-                            record_count += 1
-                            if not update_flag:
-                                update_flag = True
-                    
-                    data = src_file.read(32)
+        data=fetch.fetch_get_stock_day(code, lastdatetime,today)
+        for record in data:
+            row['datetime'] = record[0] * 10000
+            row['openPrice'] = record[1] * 10
+            row['highPrice'] = record[2] * 10
+            row['lowPrice'] = record[3] * 10
+            row['closePrice'] = record[4] * 10
+            row['transAmount'] = round(record[5] * 0.001)
+            if stktype == 2:
+            #指数
+                row['transCount'] = record[6]
+            else:
+                row['transCount'] = round(record[6] * 0.01)
+            row.append()
+            record_count +=1
+            if not update_flag:
+                update_flag = True                    
                                 
         if update_flag:
             stock_count += 1
-            table.flush()
+            table.flush()        
             
     connect.commit()
                                 
@@ -521,14 +455,14 @@ if __name__ == '__main__':
     
     src_dir = "/backup/extraHome/quantification/data"
     dest_dir = "/backup/extraHome/quantification/data"
-    dest_dir="/Volumes/Macintosh HD/Users/jungong/workspace/data"
+    #dest_dir="/Volumes/Macintosh HD/Users/jungong/workspace/data"
     connect = sqlite3.connect(dest_dir + "/stock.db")
     
     
     ImportStockName(connect)
     
     
-    #ImportDayData(connect, src_dir, dest_dir)
+    ImportDayData(connect, dest_dir)
     #ImportMinData(connect, src_dir, dest_dir, '5min')
     #ImportMinData(connect, src_dir, dest_dir, '1min')
 

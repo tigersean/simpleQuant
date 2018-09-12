@@ -191,7 +191,7 @@ def exclude_from_stock_ip_list(exclude_ip_list):
             stock_ip_list.remove(exc)
 
 
-info_ip_list = [{'ip': '124.14.104.60', 'port': 7709},
+stock_ip_list = [{'ip': '124.14.104.60', 'port': 7709},
                 {'ip': '112.14.104.66', 'port': 7709},
                 {'ip': '112.95.140.92', 'port': 7709},
                 {'ip': '112.95.140.93', 'port': 7709},
@@ -200,7 +200,7 @@ info_ip_list = [{'ip': '124.14.104.60', 'port': 7709},
 ]
 
 
-stock_ip_list = [
+info_ip_list = [
     {'ip': '121.14.104.63','port':7721},
     {'ip': '119.147.80.148','port':7721},
     {'ip': '112.95.140.96','port':7721},
