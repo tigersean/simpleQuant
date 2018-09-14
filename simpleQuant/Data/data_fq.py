@@ -27,9 +27,11 @@
 import datetime
 
 import pandas as pd
-from simpleQuant.Util.Util_logs import util_log_info
 
-def data_make_qfq(bfq_data, xdxr_data):
+from QUANTAXIS.QAUtil import DATABASE, QA_util_log_info
+
+
+def QA_data_make_qfq(bfq_data, xdxr_data):
     '使用数据库数据进行复权'
     info = xdxr_data.query('category==1')
     bfq_data = bfq_data.assign(if_trade=1)
@@ -64,7 +66,7 @@ def data_make_qfq(bfq_data, xdxr_data):
                                            'if_trade', 'category'], axis=1).query("open != 0")
 
 
-def data_make_hfq(bfq_data, xdxr_data):
+def QA_data_make_hfq(bfq_data, xdxr_data):
     '使用数据库数据进行复权'
     info = xdxr_data.query('category==1')
     bfq_data = bfq_data.assign(if_trade=1)
@@ -100,9 +102,9 @@ def data_make_hfq(bfq_data, xdxr_data):
     return data.query('if_trade==1').drop(['fenhong', 'peigu', 'peigujia', 'songzhuangu'], axis=1).query("open != 0")
 
 
-def data_stock_to_fq(_data, type_='01'):
+def QA_data_stock_to_fq(__data, type_='01'):
 
-    def __fetch_stock_xdxr(code, format_='pd', collections=DATABASE.stock_xdxr):
+    def __QA_fetch_stock_xdxr(code, format_='pd', collections=DATABASE.stock_xdxr):
         '获取股票除权信息/数据库'
         try:
             data = pd.DataFrame([item for item in collections.find(
@@ -115,12 +117,12 @@ def data_stock_to_fq(_data, type_='01'):
                                                   'shares_after', 'shares_before', 'songzhuangu', 'suogu', 'xingquanjia'])
     '股票 日线/分钟线 动态复权接口'
 
-    code = _data.index.remove_unused_levels().levels[1][0] if isinstance(
-        _data.index, pd.core.indexes.multi.MultiIndex) else _data['code'][0]
+    code = __data.index.remove_unused_levels().levels[1][0] if isinstance(
+        __data.index, pd.core.indexes.multi.MultiIndex) else __data['code'][0]
     if type_ in ['01', 'qfq']:
-        return data_make_qfq(_data, __fetch_stock_xdxr(code))
+        return QA_data_make_qfq(__data, __QA_fetch_stock_xdxr(code))
     elif type_ in ['02', 'hfq']:
-        return data_make_hfq(_data, __fetch_stock_xdxr(code))
+        return QA_data_make_hfq(__data, __QA_fetch_stock_xdxr(code))
     else:
-        util_log_info('wrong fq type! Using qfq')
-        return data_make_qfq(_data, __fetch_stock_xdxr(code))
+        QA_util_log_info('wrong fq type! Using qfq')
+        return QA_data_make_qfq(__data, __QA_fetch_stock_xdxr(code))

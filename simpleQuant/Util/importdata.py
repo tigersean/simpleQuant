@@ -6,6 +6,7 @@ import math
 import sys
 import numpy as np
 from dateutil.parser import parse
+import datetime
 
 import tables as tb
 
@@ -86,8 +87,9 @@ def ImportDayData(connect, dest_dir):
     """
     导入通达信日线数据，只导入基础信息数据库中存在的股票
     """
+    errorCode=[]
     cur = connect.cursor()
-    today = datetime.date.today()
+    today = datetime.datetime.today()    
     h5fileDict = {'sh': tb.open_file(dest_dir + "/sh_day.h5", "a", filters=tb.Filters(complevel=9,complib='blosc', shuffle=True)),
                   'sz': tb.open_file(dest_dir + "/sz_day.h5", "a", filters=tb.Filters(complevel=9,complib='blosc', shuffle=True))}
     
@@ -115,23 +117,24 @@ def ImportDayData(connect, dest_dir):
         tablename = marketid + code
         
         try:
-            table = h5fileDict[market].get_node(h5groupDict[market], tablename)
+            table = h5fileDict[marketid].get_node(h5groupDict[marketid], tablename)
         except:
-            table = h5fileDict[market].create_table(h5groupDict[market], tablename, H5Record)
+            table = h5fileDict[marketid].create_table(h5groupDict[marketid], tablename, H5Record)
         
-        if table.nrows > 0:
-            startdate = table[0]['datetime']/10000
-            lastdatetime = table[-1]['datetime']/10000
-        else:
-            startdate = None
-            lastdatetime = 19900101
-        
+        if table.nrows > 0:   
+            startdate = table[0]['datetime']      
+            lastdatetime = table[-1]['datetime']
+        else:  
+            startdate = None          
+            lastdatetime = 19891231
+        _start=(parse(str(lastdatetime)).date()+datetime.timedelta(days=1))
+        _end=today.date()
+        if (_start > today.date()) or ((_start == today.date()) and (today.hour<16)): continue
         update_flag = False
         row = table.row
-        data=fetch.fetch_get_stock_day(code, parse(str(lastdatetime)).strftime('%Y-%m-%d'),
-                                    today.strftime('%Y-%m-%d'))
+        data=fetch.fetch_get_stock_day(code, _start.strftime('%Y-%m-%d'), _end.strftime('%Y-%m-%d'))
         if (data is None): 
-            print(code)
+            errorCode.append(code)
             continue
         for i, record in data.iterrows():            
             row['datetime'] = fmtdatestr(record['date'])
@@ -147,24 +150,24 @@ def ImportDayData(connect, dest_dir):
                 update_flag = True
                                 
         if update_flag:
-            stock_count += 1
-            if (stock_count%100==0):
-                table.flush()
+            stock_count += 1    
+            table.flush()
             
         if startdate is not None and valid == 0:
             cur.execute("update stock set valid=1, startdate=%i, enddate=%i where stockid=%i" %
-                        (startdate, 99999999, stockid))
-    table.flush()    
+                        (_start, 99999999, stockid))
+    
     connect.commit()
                                 
-    for market in h5fileDict:
+    for market in h5fileDict:        
         h5fileDict[market].close()
         
     print("\n共导入股票数:", stock_count)
     print("共导入日线数:", record_count)
+    print("失败股票列表:", errorCode)
 
 
-def ImportMinData(connect, src_dir, dest_dir, data_type):
+def ImportMinData(connect, dest_dir, data_type):
     """
     导入通达信分钟线、5分钟线数据，只导入基础信息数据库中存在的股票
     """
@@ -173,16 +176,16 @@ def ImportMinData(connect, src_dir, dest_dir, data_type):
         return
     
     cur = connect.cursor()
-    
+    today = datetime.datetime.today() 
     if data_type == '1min':
         print("导入1分钟数据")
-        h5fileDict = {'sh': tb.open_file(dest_dir + "/sh_1min.h5", "a", filters=tb.Filters(complevel=9,complib='zlib', shuffle=True)),
-                      'sz': tb.open_file(dest_dir + "/sz_1min.h5", "a", filters=tb.Filters(complevel=9,complib='zlib', shuffle=True))}
+        h5fileDict = {'sh': tb.open_file(dest_dir + "/sh_1min.h5", "a", filters=tb.Filters(complevel=9,complib='blosc', shuffle=True)),
+                      'sz': tb.open_file(dest_dir + "/sz_1min.h5", "a", filters=tb.Filters(complevel=9,complib='blosc', shuffle=True))}
         
     else:
         print("导入5分钟数据")
-        h5fileDict = {'sh': tb.open_file(dest_dir + "/sh_5min.h5", "a", filters=tb.Filters(complevel=9,complib='zlib', shuffle=True)),
-                      'sz': tb.open_file(dest_dir + "/sz_5min.h5", "a", filters=tb.Filters(complevel=9,complib='zlib', shuffle=True))}
+        h5fileDict = {'sh': tb.open_file(dest_dir + "/sh_5min.h5", "a", filters=tb.Filters(complevel=9,complib='blosc', shuffle=True)),
+                      'sz': tb.open_file(dest_dir + "/sz_5min.h5", "a", filters=tb.Filters(complevel=9,complib='blosc', shuffle=True))}
     
     h5groupDict = {}
     for market in h5fileDict:
@@ -198,7 +201,7 @@ def ImportMinData(connect, src_dir, dest_dir, data_type):
     for mark in a:
         marketDict[mark[0]] = mark[1].upper()
 
-    a = cur.execute("select marketid, code, type from stock order by marketid")
+    a = cur.execute("select marketid, code, type from stock order by id")
     a = a.fetchall()
     stock_count = 0
     record_count = 0
@@ -207,11 +210,7 @@ def ImportMinData(connect, src_dir, dest_dir, data_type):
         ProgressBar(i+1, total)
         marketid, code, stktype = stock[0], stock[1], stock[2]
         market = marketDict[marketid]
-        tablename = market + code
-        filename = dirDict[market] + "/" + tablename.lower() + file_suffix
-        
-        if not os.path.exists(filename):
-            continue
+        tablename = market + code              
         
         try:
             table = h5fileDict[market].get_node(h5groupDict[market], tablename)
@@ -222,22 +221,19 @@ def ImportMinData(connect, src_dir, dest_dir, data_type):
             lastdatetime = table[-1]['datetime']
         else:
             lastdatetime = None 
-        
+        _start=(parse(str(lastdatetime)).date()+datetime.timedelta(days=1))
+        _end=today.date()
+        if (_start > today.date()) or ((_start == today.date()) and (today.hour<16)): continue
         update_flag = False
         row = table.row
-        data=fetch.fetch_get_stock_day(code, lastdatetime,today)
+        data=fetch.fetch_get_stock_day(code, _start.strftime('%Y-%m-%d'), _end.strftime('%Y-%m-%d'))
         for record in data:
             row['datetime'] = record[0] * 10000
             row['openPrice'] = record[1] * 10
             row['highPrice'] = record[2] * 10
             row['lowPrice'] = record[3] * 10
             row['closePrice'] = record[4] * 10
-            row['transAmount'] = round(record[5] * 0.001)
-            if stktype == 2:
-            #指数
-                row['transCount'] = record[6]
-            else:
-                row['transCount'] = round(record[6] * 0.01)
+            row['transAmount'] = round(record[5] * 0.001)            
             row.append()
             record_count +=1
             if not update_flag:
@@ -249,8 +245,7 @@ def ImportMinData(connect, src_dir, dest_dir, data_type):
             
     connect.commit()
                                 
-    for market in h5fileDict:
-        h5fileDict[market].flush()
+    for market in h5fileDict:        
         h5fileDict[market].close()
         
     print("\n共导入股票数:", stock_count)
@@ -458,8 +453,8 @@ if __name__ == '__main__':
     starttime = time.time()
     
     src_dir = "/backup/extraHome/quantification/data"
-    #dest_dir = "/backup/extraHome/quantification/data"
-    dest_dir="/Users/jun.gong/stock_data"
+    dest_dir = "/backup/extraHome/quantification/data"
+    #dest_dir="/Users/jun.gong/stock_data"
     connect = sqlite3.connect(dest_dir + "/stock.db")
     
     

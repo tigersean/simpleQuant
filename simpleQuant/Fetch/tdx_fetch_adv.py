@@ -32,10 +32,16 @@ from threading import Thread, Timer
 import pandas as pd
 from pytdx.hq import TdxHq_API
 
-from QUANTAXIS.QAUtil.QADate_trade import QA_util_if_tradetime
-from QUANTAXIS.QAUtil.QASetting import DATABASE, stock_ip_list
-from QUANTAXIS.QAUtil.QASql import QA_util_sql_mongo_sort_ASCENDING
-from QUANTAXIS.QAUtil.QATransform import QA_util_to_json_from_pandas
+from simpleQuant.Util import (util_date_stamp, util_date_str2int,
+                              util_date_valid, util_get_real_date,
+                              util_get_real_datelist, util_get_trade_gap,
+                              util_log_info, util_time_stamp,
+                              util_web_ping, future_ip_list, stock_ip_list, exclude_from_stock_ip_list, Util_setting,
+                              trade_date_sse,SETTINGS)
+                              
+from simpleQuant.Util.Util_date import util_if_tradetime
+from simpleQuant.Util.Util_setting import stock_ip_list
+from simpleQuant.Util.Util_transform import util_to_json_from_pandas
 
 
 """
@@ -81,7 +87,7 @@ class QA_Tdx_Executor():
                     return (datetime.datetime.now() - _time).total_seconds()
                 else:
                     return datetime.timedelta(9, 9, 0).total_seconds()
-        except Exception as e:
+        except Exception :
             return datetime.timedelta(9, 9, 0).total_seconds()
 
     def get_market(self, code):
@@ -196,6 +202,43 @@ class QA_Tdx_Executor():
         except:
             raise Exception
 
+    def fetch_get_stock_day(self, code, start_date, end_date, if_fq='00', frequence='day', ip=None, port=None):
+            if frequence in ['day', 'd', 'D', 'DAY', 'Day']:
+                frequence = 9
+            elif frequence in ['w', 'W', 'Week', 'week']:
+                frequence = 5
+            elif frequence in ['month', 'M', 'm', 'Month']:
+                frequence = 6
+            elif frequence in ['quarter', 'Q', 'Quarter', 'q']:
+                frequence = 10
+            elif frequence in ['y', 'Y', 'year', 'Year']:
+                frequence = 11
+            start_date = str(start_date)[0:10]
+            today_ = datetime.date.today()
+            lens = util_get_trade_gap(start_date, today_)
+            data=Null
+            self._get_security_bars(context=data, code=code, _type=frequence, lens=lens)
+           
+
+            # 这里的问题是: 如果只取了一天的股票,而当天停牌, 那么就直接返回None了
+            if len(data) < 1:
+                return None
+            data = data[data['open'] != 0]
+
+            data = data.assign(date=data['datetime'].apply(lambda x: str(x[0:10])),
+                               code=str(code),
+                               date_stamp=data['datetime'].apply(lambda x: util_date_stamp(str(x)[0:10])))\
+                .set_index('date', drop=False, inplace=False)
+
+            data = data.drop(['year', 'month', 'day', 'hour', 'minute', 'datetime'], axis=1)[
+                start_date:end_date]
+            if if_fq in ['00', 'bfq']:
+                return data
+            else:
+                print('CURRENTLY NOT SUPPORT REALTIME FUQUAN')
+                return None
+
+
     def _get_security_bars(self, context, code, _type, lens):
         try:
             _api = self.get_available()
@@ -205,7 +248,7 @@ class QA_Tdx_Executor():
                 print(context)
             self._queue.put(_api)
             return context
-        except Exception as e:
+        except Exception :
             return self._get_security_bars(context, code, _type, lens)
 
     def get_security_bar(self, code, _type, lens):
@@ -218,11 +261,8 @@ class QA_Tdx_Executor():
         except Exception as e:
             raise e
 
-    def save_mongo(self, data, client=DATABASE):
-        database = DATABASE.get_collection(
-            'realtime_{}'.format(datetime.date.today()))
-
-        database.insert_many(QA_util_to_json_from_pandas(data))
+    def save_hdf(self):
+        pass  
 
 
 def get_bar():
@@ -237,7 +277,7 @@ def get_bar():
 
     while True:
         _time = datetime.datetime.now()
-        if QA_util_if_tradetime(_time):  # 如果在交易时间
+        if util_if_tradetime(_time):  # 如果在交易时间
             data = x.get_security_bar_concurrent(code, 'day', 1)
 
             print('Time {}'.format(
@@ -277,12 +317,12 @@ def bat():
         'realtime_{}'.format(datetime.date.today()))
 
     print(database)
-    database.create_index([('code', QA_util_sql_mongo_sort_ASCENDING),
-                           ('datetime', QA_util_sql_mongo_sort_ASCENDING)])
+    database.create_index([('code', util_sql_mongo_sort_ASCENDING),
+                           ('datetime', util_sql_mongo_sort_ASCENDING)])
 
     for i in range(100000):
         _time = datetime.datetime.now()
-        if QA_util_if_tradetime(_time):  # 如果在交易时间
+        if util_if_tradetime(_time):  # 如果在交易时间
             data = x.get_realtime_concurrent(code)
 
             data[0]['datetime'] = data[1]
