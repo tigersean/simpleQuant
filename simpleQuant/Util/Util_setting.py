@@ -28,6 +28,7 @@ import configparser
 from simpleQuant.Account.user import user_sign_in
 from simpleQuant.Util.Localize import qa_path, setting_path
 from simpleQuant.Util.Util_hdf5 import util_hdf5_setting
+from simpleQuant.Util.Util_redis import util_redis_setting
 
 
 
@@ -39,20 +40,18 @@ from simpleQuant.Util.Util_hdf5 import util_hdf5_setting
 
 CONFIGFILE_PATH = '{}{}{}'.format(setting_path, os.sep, 'config.ini')
 
-DEFAULT_HDF5_URI = ''
+DEFAULT_DATA_URI = 'data'
 
-DEFAULT_REDIS_URI = ''
+DEFAULT_REDIS_URI = '127.0.0.1:7792'
 
-DEFAULT_SQLLITE_URI = ''
 class Util_setting():
     def __init__(self, uri=None):
-        self.hdf5 = uri or self.get_config() or self.env_config() or DEFAULT_HDF5_URI
-        self.redis = None
-        self.sqllite = None
+        self.data_uri = uri or self.get_config() or self.env_config() or DEFAULT_DATA_URI
+        self.redis_uri = None
 
         # 加入配置文件地址
 
-    def get_config(self, section='HDF5', option='uri', default_value=DEFAULT_HDF5_URI):
+    def get_config(self, section='HDF5', option='uri', default_value=DEFAULT_DATA_URI):
         """[summary]
 
         Keyword Arguments:
@@ -80,7 +79,7 @@ class Util_setting():
             f.close()
             return default_value
 
-    def set_config(self, section='HDF5', option='uri', default_value=DEFAULT_HDF5_URI):
+    def set_config(self, section='HDF5', option='uri', default_value=DEFAULT_DATA_URI):
         """[summary]
 
         Keyword Arguments:
@@ -149,18 +148,20 @@ class Util_setting():
                 config.write(f)
 
     def env_config(self):
-        return os.environ.get("MONGOURI", None)
+        return os.environ.get("DATAURI", None)
 
     @property
     def client(self):
-        return util_hdf5_setting(self.hdf5)
+        return util_hdf5_setting(self.data_uri)
    
+    def snapshot(self):
+        return util_redis_setting(self.redis_uri)
 
     def change(self, ip, port):
         self.ip = ip
         self.port = port
-        global DATABASE
-        DATABASE = self.client
+        global STOCKDATA
+        STOCKDATA = self.client
         return self
 
     def login(self, user_name, password):
@@ -175,9 +176,8 @@ class Util_setting():
 
 
 SETTINGS = Util_setting()
-REDIS = SETTINGS.redis
-HDF5=SETTINGS.hdf5
-SQLLITE=SETTINGS.sqllite
+REDIS = SETTINGS.redis_uri
+STOCKDATA=SETTINGS.data_uri
 
 
 def exclude_from_stock_ip_list(exclude_ip_list):

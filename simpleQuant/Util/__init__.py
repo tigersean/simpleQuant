@@ -65,7 +65,7 @@ from simpleQuant.Parameter import (MARKET_TYPE, ORDER_STATUS, TRADE_STATUS, DATA
                                           ACCOUNT_EVENT, BROKER_EVENT, EVENT_TYPE, MARKET_EVENT, ENGINE_EVENT,
                                           RUNNING_ENVIRONMENT, AMOUNT_MODEL, MARKET_ERROR)
 
-from simpleQuant.Util.Util_setting import (Util_setting, future_ip_list, SETTINGS,
+from simpleQuant.Util.Util_setting import (STOCKDATA, Util_setting, future_ip_list, SETTINGS,
                                         info_ip_list, stock_ip_list, exclude_from_stock_ip_list)
 
 from simpleQuant.Util.Util_transform import (util_to_json_from_pandas,
