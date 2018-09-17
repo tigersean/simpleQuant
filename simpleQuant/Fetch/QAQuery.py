@@ -35,7 +35,7 @@ from QUANTAXIS.QAUtil import (DATABASE, QA_Setting, QA_util_date_stamp,
                               QA_util_sql_mongo_sort_DESCENDING,
                               QA_util_time_stamp, QA_util_to_json_from_pandas,
                               trade_date_sse)
-from QUANTAXIS.QAData.financial_mean import financial_dict
+from simpleQuant.Data.financial_mean import financial_dict
 
 """
 按要求从数据库取数据，并转换成numpy结构

@@ -37,7 +37,7 @@ from simpleQuant.Util import (util_date_stamp, util_date_str2int,
                               util_get_real_datelist, util_get_trade_gap,
                               util_log_info, util_time_stamp,
                               util_web_ping, future_ip_list, stock_ip_list, exclude_from_stock_ip_list, Util_setting,
-                              trade_date_sse,SETTINGS)
+                              trade_date_sse,SETTINGS, STOCKDATA)
                               
 from simpleQuant.Util.Util_date import util_if_tradetime
 from simpleQuant.Util.Util_setting import stock_ip_list
@@ -61,7 +61,7 @@ class QA_Tdx_Executor():
 
         self.executor = ThreadPoolExecutor(self.thread_num)
 
-    def __getattr__(self, item):
+    def __getattr__(self, item):        
         try:
             api = self.get_available()
             func = api.__getattribute__(item)
@@ -136,8 +136,7 @@ class QA_Tdx_Executor():
             Timer(0, self.api_worker).start()
             return self._queue.get()
 
-    def api_worker(self):
-        data = []
+    def api_worker(self):        
         if self._queue.qsize() < 80:
             for item in stock_ip_list:
                 _sec = self._test_speed(ip=item['ip'], port=item['port'])
@@ -151,35 +150,7 @@ class QA_Tdx_Executor():
             self._queue_clean()
             Timer(0, self.api_worker).start()
         Timer(300, self.api_worker).start()
-
-    def _singal_job(self, context, id_, time_out=0.5):
-        try:
-            _api = self.get_available()
-
-            __data = context.append(self.api_no_connection.to_df(_api.get_security_quotes(
-                [(self._select_market_code(x), x) for x in code[80 * id_:80 * (id_ + 1)]])))
-            __data['datetime'] = datetime.datetime.now()
-            self._queue.put(_api)  # 加入注销
-            return __data
-        except:
-            return self.singal_job(context, id_)
-
-    def get_realtime(self, code):
-        context = pd.DataFrame()
-
-        code = [code] if type(code) is str else code
-        try:
-            for id_ in range(int(len(code) / 80) + 1):
-                context = self._singal_job(context, id_)
-
-            data = context[['datetime', 'last_close', 'code', 'open', 'high', 'low', 'price', 'cur_vol',
-                            's_vol', 'b_vol', 'vol', 'ask1', 'ask_vol1', 'bid1', 'bid_vol1', 'ask2', 'ask_vol2',
-                            'bid2', 'bid_vol2', 'ask3', 'ask_vol3', 'bid3', 'bid_vol3', 'ask4',
-                            'ask_vol4', 'bid4', 'bid_vol4', 'ask5', 'ask_vol5', 'bid5', 'bid_vol5']]
-            data['datetime'] = data['datetime'].apply(lambda x: str(x))
-            return data.set_index('code', drop=False, inplace=False)
-        except:
-            return None
+    
 
     def get_realtime_concurrent(self, code):
         code = [code] if type(code) is str else code
@@ -201,51 +172,38 @@ class QA_Tdx_Executor():
 
         except:
             raise Exception
-
-    def fetch_get_stock_day(self, code, start_date, end_date, if_fq='00', frequence='day', ip=None, port=None):
-            if frequence in ['day', 'd', 'D', 'DAY', 'Day']:
-                frequence = 9
-            elif frequence in ['w', 'W', 'Week', 'week']:
-                frequence = 5
-            elif frequence in ['month', 'M', 'm', 'Month']:
-                frequence = 6
-            elif frequence in ['quarter', 'Q', 'Quarter', 'q']:
-                frequence = 10
-            elif frequence in ['y', 'Y', 'year', 'Year']:
-                frequence = 11
+    
+            
+    def fetch_get_stock_day(self, code, start_date, end_date, frequence='day'):            
             start_date = str(start_date)[0:10]
+            end_date = str(end_date)[0:10]
             today_ = datetime.date.today()
-            lens = util_get_trade_gap(start_date, today_)
-            data=Null
-            self._get_security_bars(context=data, code=code, _type=frequence, lens=lens)
-           
-
+            lens = util_get_trade_gap(start_date, today_) 
+                       
+            data =self.get_security_bar(code=code, _type=self.get_frequence(frequence), lens=lens)           
+            
             # 这里的问题是: 如果只取了一天的股票,而当天停牌, 那么就直接返回None了
             if len(data) < 1:
                 return None
+            data=self.api_no_connection.to_df(data)            
+            
             data = data[data['open'] != 0]
 
             data = data.assign(date=data['datetime'].apply(lambda x: str(x[0:10])),
                                code=str(code),
                                date_stamp=data['datetime'].apply(lambda x: util_date_stamp(str(x)[0:10])))\
-                .set_index('date', drop=False, inplace=False)
-
-            data = data.drop(['year', 'month', 'day', 'hour', 'minute', 'datetime'], axis=1)[
-                start_date:end_date]
-            if if_fq in ['00', 'bfq']:
-                return data
-            else:
-                print('CURRENTLY NOT SUPPORT REALTIME FUQUAN')
-                return None
+                .set_index('date', drop=False, inplace=False)            
+            data = data.drop(['year', 'month', 'day', 'hour', 'minute', 'datetime','date_stamp'], axis=1)[
+                start_date:end_date]            
+            return data
 
 
     def _get_security_bars(self, context, code, _type, lens):
         try:
             _api = self.get_available()
-            for i in range(1, int(lens / 800) + 2):
+            for i in range(int(lens / 800) + 1):
                 context.extend(_api.get_security_bars(self.get_frequence(
-                    _type), self.get_market(str(code)), str(code), (i - 1) * 800, 800))
-                print(context)
+                    _type), self.get_market(str(code)), str(code), (int(lens / 800) - i) * 800, 800)) 
             self._queue.put(_api)
             return context
         except Exception :
@@ -313,7 +271,7 @@ def bat():
     print(x._queue.qsize())
     print(x.get_available())
 
-    database = DATABASE.get_collection(
+    database = STOCKDATA.get_collection(
         'realtime_{}'.format(datetime.date.today()))
 
     print(database)
@@ -342,39 +300,14 @@ def bat():
 
 if __name__ == '__main__':
     import time
-    _time1 = datetime.datetime.now()
-    from QUANTAXIS.QAFetch.QAQuery_Advance import QA_fetch_stock_list_adv
-    code = QA_fetch_stock_list_adv().code.tolist()
+    import sys
+    _time1 = datetime.datetime.now()  
 
     # DATABASE.realtime.create_index([('code', QA_util_sql_mongo_sort_ASCENDING),
     #                                 ('datetime', QA_util_sql_mongo_sort_ASCENDING)])
 
     # print(len(code))
-    # x = QA_Tdx_Executor()
-    # print(x._queue.qsize())
-    # print(x.get_available())
-    # #data = x.get_security_bars(code[0], '15min', 20)
-    # # print(data)
-    # # for i in range(5):
-    # #     print(x.get_realtime_concurrent(code))
-
-    # for i in range(100000):
-    #     _time = datetime.datetime.now()
-    #     if QA_util_if_tradetime(_time):  # 如果在交易时间
-    #         #data = x.get_realtime(code)
-    #         data = x.get_realtime_concurrent(code)
-
-    #         data[0]['datetime'] = data[1]
-    #         x.save_mongo(data[0])
-    #         # print(code[0])
-    #         #data = x.get_security_bars(code, '15min', 20)
-    #         # if data is not None:
-    #         print(len(data[0]))
-    #         # print(data)
-    #         print('Time {}'.format((datetime.datetime.now() - _time).total_seconds()))
-    #         time.sleep(1)
-    #         print('Connection Pool NOW LEFT {} Available IP'.format(x._queue.qsize()))
-    #         print('Program Last Time {}'.format(
-    #             (datetime.datetime.now() - _time1).total_seconds()))
-    #         # print(threading.enumerate())
-    # #
+    x = QA_Tdx_Executor()   
+    print(x.fetch_get_stock_day('600000','2018-09-01','2018-09-09','day'))  
+    #print(x.get_realtime_concurrent('600000'))  
+    sys.exit(0)
