@@ -42,6 +42,7 @@ from simpleQuant.Util import (util_date_stamp, util_date_str2int,
 from simpleQuant.Util.Util_date import util_if_tradetime
 from simpleQuant.Util.Util_setting import stock_ip_list
 from simpleQuant.Util.Util_transform import util_to_json_from_pandas
+from simpleQuant.Fetch.base import _select_market_code
 
 
 """
@@ -56,7 +57,7 @@ class QA_Tdx_Executor():
         self._queue = queue.Queue(maxsize=200)
         self.api_no_connection = TdxHq_API()
         self._api_worker = Thread(
-            target=self.api_worker, args=(), name='API Worker')
+             target=self.api_worker, args=(), name='API Worker')
         self._api_worker.start()
 
         self.executor = ThreadPoolExecutor(self.thread_num)
@@ -77,12 +78,13 @@ class QA_Tdx_Executor():
     def _queue_clean(self):
         self._queue = queue.Queue(maxsize=200)
 
-    def _test_speed(self, ip, port=7709):
+    def _test_speed(self, ip, port=7709,time_out=0.7):
 
         api = TdxHq_API(raise_exception=True, auto_retry=False)
         _time = datetime.datetime.now()
         try:
-            with api.connect(ip, port, time_out=0.05):
+            with api.connect(ip, port,time_out):
+                _time = datetime.datetime.now()
                 if len(api.get_security_list(0, 1)) > 800:
                     return (datetime.datetime.now() - _time).total_seconds()
                 else:
@@ -139,11 +141,11 @@ class QA_Tdx_Executor():
     def api_worker(self):        
         if self._queue.qsize() < 80:
             for item in stock_ip_list:
-                _sec = self._test_speed(ip=item['ip'], port=item['port'])
-                if _sec < 0.1:
+                _sec = self._test_speed(ip=item['ip'], port=item['port'],time_out=0.7)
+                if _sec < 0.15:
                     try:
                         self._queue.put(TdxHq_API(heartbeat=False).connect(
-                            ip=item['ip'], port=item['port'], time_out=0.05))
+                            ip=item['ip'], port=item['port'],time_out=0.7))
                     except:
                         pass
         else:
@@ -162,31 +164,18 @@ class QA_Tdx_Executor():
         except:
             pass
 
-    def get_security_bar_concurrent(self, code, _type, lens):
-        try:
-
-            data = {self.get_security_bars(self.get_frequence(_type), self.get_market(
-                str(code)), str(code), 0, lens) for code in code}
-
-            return [i.result() for i in data]
-
-        except:
-            raise Exception
-    
-            
+                
     def fetch_get_stock_day(self, code, start_date, end_date, frequence='day'):            
             start_date = str(start_date)[0:10]
             end_date = str(end_date)[0:10]
             today_ = datetime.date.today()
             lens = util_get_trade_gap(start_date, today_) 
                        
-            data =self.get_security_bar(code=code, _type=self.get_frequence(frequence), lens=lens)           
-            
+            data =self.get_security_bars_concurrent(code=code, _type=self.get_frequence(frequence), lens=lens)           
             # 这里的问题是: 如果只取了一天的股票,而当天停牌, 那么就直接返回None了
             if len(data) < 1:
                 return None
-            data=self.api_no_connection.to_df(data)            
-            
+
             data = data[data['open'] != 0]
 
             data = data.assign(date=data['datetime'].apply(lambda x: str(x[0:10])),
@@ -198,105 +187,20 @@ class QA_Tdx_Executor():
             return data
 
 
-    def _get_security_bars(self, context, code, _type, lens):
+    def get_security_bars_concurrent(self, code, _type, lens):
         try:
-            _api = self.get_available()
-            for i in range(int(lens / 800) + 1):
-                context.extend(_api.get_security_bars(self.get_frequence(
-                    _type), self.get_market(str(code)), str(code), (int(lens / 800) - i) * 800, 800)) 
-            self._queue.put(_api)
-            return context
-        except Exception :
-            return self._get_security_bars(context, code, _type, lens)
-
-    def get_security_bar(self, code, _type, lens):
-        code = [code] if type(code) is str else code
-        context = []
-        try:
-            for item in code:
-                context = self._get_security_bars(context, item, _type, lens)
-            return context
-        except Exception as e:
-            raise e
+            # data = {self.get_security_quotes([(self.get_market(
+            #     x), x) for x in code[80 * pos:80 * (pos + 1)]]) for pos in range(int(len(code) / 80) + 1)}
+            # data = pd.concat([api.to_df(api.get_security_bars(frequence, _select_market_code(
+            #     code), code, (int(lens / 800) - i) * 800, 800)) for i in range(int(lens / 800) + 1)], axis=0)
+            data = {(self.get_security_bars(_type, _select_market_code(
+                code), code, (int(lens / 800) - i) * 800, 800)) for i in range(int(lens / 800) + 1)}
+            return pd.concat([self.api_no_connection.to_df(i.result()) for i in data])
+        except:
+            pass
 
     def save_hdf(self):
-        pass  
-
-
-def get_bar():
-
-    _time1 = datetime.datetime.now()
-    from QUANTAXIS.QAFetch.QAQuery_Advance import QA_fetch_stock_block_adv
-    code = QA_fetch_stock_block_adv().code
-    print(len(code))
-    x = QA_Tdx_Executor()
-    print(x._queue.qsize())
-    print(x.get_available())
-
-    while True:
-        _time = datetime.datetime.now()
-        if util_if_tradetime(_time):  # 如果在交易时间
-            data = x.get_security_bar_concurrent(code, 'day', 1)
-
-            print('Time {}'.format(
-                (datetime.datetime.now() - _time).total_seconds()))
-            time.sleep(1)
-            print('Connection Pool NOW LEFT {} Available IP'.format(
-                x._queue.qsize()))
-            print('Program Last Time {}'.format(
-                (datetime.datetime.now() - _time1).total_seconds()))
-
-            return data
-        else:
-            print('Not Trading time {}'.format(_time))
-            time.sleep(1)
-
-
-def get_day_once():
-
-    _time1 = datetime.datetime.now()
-    from QUANTAXIS.QAFetch.QAQuery_Advance import QA_fetch_stock_block_adv
-    code = QA_fetch_stock_block_adv().code
-    x = QA_Tdx_Executor()
-    return x.get_security_bar_concurrent(code, 'day', 1)
-
-
-def bat():
-
-    _time1 = datetime.datetime.now()
-    from QUANTAXIS.QAFetch.QAQuery_Advance import QA_fetch_stock_block_adv
-    code = QA_fetch_stock_block_adv().code
-    print(len(code))
-    x = QA_Tdx_Executor()
-    print(x._queue.qsize())
-    print(x.get_available())
-
-    database = STOCKDATA.get_collection(
-        'realtime_{}'.format(datetime.date.today()))
-
-    print(database)
-    database.create_index([('code', util_sql_mongo_sort_ASCENDING),
-                           ('datetime', util_sql_mongo_sort_ASCENDING)])
-
-    for i in range(100000):
-        _time = datetime.datetime.now()
-        if util_if_tradetime(_time):  # 如果在交易时间
-            data = x.get_realtime_concurrent(code)
-
-            data[0]['datetime'] = data[1]
-            x.save_mongo(data[0])
-
-            print('Time {}'.format(
-                (datetime.datetime.now() - _time).total_seconds()))
-            time.sleep(1)
-            print('Connection Pool NOW LEFT {} Available IP'.format(
-                x._queue.qsize()))
-            print('Program Last Time {}'.format(
-                (datetime.datetime.now() - _time1).total_seconds()))
-        else:
-            print('Not Trading time {}'.format(_time))
-            time.sleep(1)
-
+        pass 
 
 if __name__ == '__main__':
     import time
@@ -309,5 +213,5 @@ if __name__ == '__main__':
     # print(len(code))
     x = QA_Tdx_Executor()   
     print(x.fetch_get_stock_day('600000','2018-09-01','2018-09-09','day'))  
-    #print(x.get_realtime_concurrent('600000'))  
+    print(x.get_realtime_concurrent('600000'))  
     sys.exit(0)
