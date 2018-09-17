@@ -81,7 +81,6 @@ class QA_Tdx_Executor():
     def _test_speed(self, ip, port=7709,time_out=0.7):
 
         api = TdxHq_API(raise_exception=True, auto_retry=False)
-        _time = datetime.datetime.now()
         try:
             with api.connect(ip, port,time_out):
                 _time = datetime.datetime.now()
@@ -89,9 +88,10 @@ class QA_Tdx_Executor():
                     return (datetime.datetime.now() - _time).total_seconds()
                 else:
                     return datetime.timedelta(9, 9, 0).total_seconds()
+                
         except Exception :
             return datetime.timedelta(9, 9, 0).total_seconds()
-
+        
     def get_market(self, code):
         code = str(code)
         if code[0] in ['5', '6', '9'] or code[:3] in ["009", "126", "110", "201", "202", "203", "204"]:
@@ -124,7 +124,7 @@ class QA_Tdx_Executor():
 
     @property
     def ipsize(self):
-        return len(self._queue.qsize())
+        return self._queue.qsize()
 
     @property
     def api(self):
@@ -146,6 +146,7 @@ class QA_Tdx_Executor():
                     try:
                         self._queue.put(TdxHq_API(heartbeat=False).connect(
                             ip=item['ip'], port=item['port'],time_out=0.7))
+                        break
                     except:
                         pass
         else:
@@ -212,6 +213,13 @@ if __name__ == '__main__':
 
     # print(len(code))
     x = QA_Tdx_Executor()   
+    print(x._queue.qsize())
     print(x.fetch_get_stock_day('600000','2018-09-01','2018-09-09','day'))  
-    print(x.get_realtime_concurrent('600000'))  
+    print(x.get_realtime_concurrent('600000'))
+    print(x._queue.qsize())  
+    time.sleep(100)
+    print(x._queue.qsize())
+    print(x.fetch_get_stock_day('600000','2018-09-01','2018-09-09','day'))  
+    print(x.get_realtime_concurrent('600000'))
+    print(x._queue.qsize())  
     sys.exit(0)
