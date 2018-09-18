@@ -236,9 +236,9 @@ if __name__ == '__main__':
         try:
             print(x._queue.qsize())
             print(x.fetch_get_stock_day('600000','2018-09-01','2018-09-09','day'))  
-            print(x.get_realtime_concurrent(['600000','600005']))
+            print(x.get_realtime_concurrent(['600000','600004','600839']))
             print(x._queue.qsize())  
-            time.sleep(301)        
+            time.sleep(5)        
         except Exception:
             pass
         finally:
