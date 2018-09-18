@@ -208,7 +208,6 @@ class QA_Tdx_Executor():
                 start_date:end_date]            
             return data
 
-
     def get_security_bars_concurrent(self, code, _type, lens):
         try:
             data = {(self.get_security_bars(_type, _select_market_code(
