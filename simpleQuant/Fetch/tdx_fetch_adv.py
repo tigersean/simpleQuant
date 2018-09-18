@@ -51,16 +51,39 @@ from simpleQuant.Fetch.base import _select_market_code
 """
 
 
+class LoopTimer(Timer):  
+    """Call a function after a specified number of seconds:
+
+
+            t = LoopTimer(30.0, f, args=[], kwargs={})
+            t.start()
+            t.cancel()     # stop the timer's action if it's still waiting
+
+
+    """
+    def __init__(self, interval, function, args=[], kwargs={}):
+        Timer.__init__(self,interval, function, args, kwargs)
+
+
+    def run(self):
+        while True:
+            self.finished.wait(self.interval)
+            if self.finished.is_set():
+                self.finished.set()
+                break
+            self.function(*self.args, **self.kwargs)  
+
+
 class QA_Tdx_Executor():
-    def __init__(self, thread_num=2, *args, **kwargs):
+    def __init__(self, thread_num=3, *args, **kwargs):
         self.thread_num = thread_num
         self._queue = queue.Queue(maxsize=200)
         self.api_no_connection = TdxHq_API()
         self._api_worker = Thread(
              target=self.api_worker, args=(), name='API Worker')
-        self._api_worker.start()
-
+        #self._api_worker.start()
         self.executor = ThreadPoolExecutor(self.thread_num)
+        LoopTimer(5,self.__test_connected).start()
 
     def __getattr__(self, item):        
         try:
@@ -75,10 +98,17 @@ class QA_Tdx_Executor():
         except:
             return self.__getattr__(item)
 
-    def _queue_clean(self):
-        self._queue = queue.Queue(maxsize=200)
+    def __test_connected(self):
+        api =self.get_available()
+        if len(api.get_security_list(0, 1)) > 800:
+            self._queue.put(api)
+        else:
+            self.api_worker()
 
-    def _test_speed(self, ip, port=7709,time_out=0.7):
+    # def _queue_clean(self):
+    #     self._queue = queue.Queue(maxsize=200)
+
+    def _test_speed(self, ip, port=7709,time_out=0.5):
 
         api = TdxHq_API(raise_exception=True, auto_retry=False)
         try:
@@ -135,24 +165,26 @@ class QA_Tdx_Executor():
         if self._queue.empty() is False:
             return self._queue.get_nowait()
         else:
-            Timer(0, self.api_worker).start()
+            #Timer(0, self.api_worker).start()
+            self.api_worker()
             return self._queue.get()
 
-    def api_worker(self):        
-        if self._queue.qsize() < 80:
-            for item in stock_ip_list:
-                _sec = self._test_speed(ip=item['ip'], port=item['port'],time_out=0.7)
-                if _sec < 0.15:
-                    try:
-                        self._queue.put(TdxHq_API(heartbeat=False).connect(
-                            ip=item['ip'], port=item['port'],time_out=0.7))
-                        break
-                    except:
-                        pass
-        else:
-            self._queue_clean()
-            Timer(0, self.api_worker).start()
-        Timer(300, self.api_worker).start()
+    def api_worker(self):                
+       # if self._queue.qsize() < 80:
+        for item in stock_ip_list:
+            
+            _sec = self._test_speed(ip=item['ip'], port=item['port'],time_out=0.5)
+            if _sec < 0.15:
+              try:
+                self._queue.put(TdxHq_API(heartbeat=False,auto_retry=True).connect(
+                    ip=item['ip'], port=item['port']))
+                break
+              except Exception:
+                pass
+        #else:
+        #    self._queue_clean()
+        #    Timer(0, self.api_worker).start()
+        #Timer(100, self.api_worker).start()
     
 
     def get_realtime_concurrent(self, code):
@@ -213,13 +245,15 @@ if __name__ == '__main__':
 
     # print(len(code))
     x = QA_Tdx_Executor()   
-    print(x._queue.qsize())
-    print(x.fetch_get_stock_day('600000','2018-09-01','2018-09-09','day'))  
-    print(x.get_realtime_concurrent('600000'))
-    print(x._queue.qsize())  
-    time.sleep(100)
-    print(x._queue.qsize())
-    print(x.fetch_get_stock_day('600000','2018-09-01','2018-09-09','day'))  
-    print(x.get_realtime_concurrent('600000'))
-    print(x._queue.qsize())  
-    sys.exit(0)
+    for ii in range(10):
+        try:
+            print(x._queue.qsize())
+            print(x.fetch_get_stock_day('600000','2018-09-01','2018-09-09','day'))  
+            print(x.get_realtime_concurrent('600000'))
+            print(x._queue.qsize())  
+            time.sleep(301)        
+        except Exception:
+            pass
+        finally:
+            pass
+    
