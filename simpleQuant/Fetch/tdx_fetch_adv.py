@@ -77,13 +77,12 @@ class LoopTimer(Timer):
 class QA_Tdx_Executor():
     def __init__(self, thread_num=3, *args, **kwargs):
         self.thread_num = thread_num
-        self._queue = queue.Queue(maxsize=200)
+        self._queue = queue.Queue(maxsize=thread_num*2)
         self.api_no_connection = TdxHq_API()
         self._api_worker = Thread(
              target=self.api_worker, args=(), name='API Worker')
-        #self._api_worker.start()
         self.executor = ThreadPoolExecutor(self.thread_num)
-        LoopTimer(5,self.__test_connected).start()
+        LoopTimer(3,self.__test_connected).start()
 
     def __getattr__(self, item):        
         try:
@@ -104,9 +103,6 @@ class QA_Tdx_Executor():
             self._queue.put(api)
         else:
             self.api_worker()
-
-    # def _queue_clean(self):
-    #     self._queue = queue.Queue(maxsize=200)
 
     def _test_speed(self, ip, port=7709,time_out=0.5):
 
@@ -164,13 +160,11 @@ class QA_Tdx_Executor():
 
         if self._queue.empty() is False:
             return self._queue.get_nowait()
-        else:
-            #Timer(0, self.api_worker).start()
+        else:            
             self.api_worker()
             return self._queue.get()
 
     def api_worker(self):                
-       # if self._queue.qsize() < 80:
         for item in stock_ip_list:
             
             _sec = self._test_speed(ip=item['ip'], port=item['port'],time_out=0.5)
@@ -180,12 +174,7 @@ class QA_Tdx_Executor():
                     ip=item['ip'], port=item['port']))
                 break
               except Exception:
-                pass
-        #else:
-        #    self._queue_clean()
-        #    Timer(0, self.api_worker).start()
-        #Timer(100, self.api_worker).start()
-    
+                pass     
 
     def get_realtime_concurrent(self, code):
         code = [code] if type(code) is str else code
@@ -222,10 +211,6 @@ class QA_Tdx_Executor():
 
     def get_security_bars_concurrent(self, code, _type, lens):
         try:
-            # data = {self.get_security_quotes([(self.get_market(
-            #     x), x) for x in code[80 * pos:80 * (pos + 1)]]) for pos in range(int(len(code) / 80) + 1)}
-            # data = pd.concat([api.to_df(api.get_security_bars(frequence, _select_market_code(
-            #     code), code, (int(lens / 800) - i) * 800, 800)) for i in range(int(lens / 800) + 1)], axis=0)
             data = {(self.get_security_bars(_type, _select_market_code(
                 code), code, (int(lens / 800) - i) * 800, 800)) for i in range(int(lens / 800) + 1)}
             return pd.concat([self.api_no_connection.to_df(i.result()) for i in data])
