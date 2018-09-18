@@ -229,7 +229,7 @@ if __name__ == '__main__':
 
     # print(len(code))
     x = QA_Tdx_Executor()   
-    for ii in range(10):
+    while(True):
         try:
             print(x._queue.qsize())
             print(x.fetch_get_stock_day('600000','2018-09-01','2018-09-09','day'))  

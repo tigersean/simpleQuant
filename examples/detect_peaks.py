@@ -99,12 +99,12 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
         dx[np.where(np.isnan(dx))[0]] = np.inf
     ine, ire, ife = np.array([[], [], []], dtype=int)
     if not edge:
-        ine = np.where((np.hstack((dx, 0)) < 0) &amp; (np.hstack((0, dx)) > 0))[0]
+        ine = np.where((np.hstack((dx, 0)) < 0) and (np.hstack((0, dx)) > 0))[0]
     else:
         if edge.lower() in ['rising', 'both']:
-            ire = np.where((np.hstack((dx, 0)) <= 0) &amp; (np.hstack((0, dx)) > 0))[0]
+            ire = np.where((np.hstack((dx, 0)) <= 0) and (np.hstack((0, dx)) > 0))[0]
         if edge.lower() in ['falling', 'both']:
-            ife = np.where((np.hstack((dx, 0)) < 0) &amp; (np.hstack((0, dx)) >= 0))[0]
+            ife = np.where((np.hstack((dx, 0)) < 0) and (np.hstack((0, dx)) >= 0))[0]
     ind = np.unique(np.hstack((ine, ire, ife)))
     # handle NaN's
     if ind.size and indnan.size:
@@ -129,8 +129,8 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
         for i in range(ind.size):
             if not idel[i]:
                 # keep peaks with the same height if kpsh is True
-                idel = idel | (ind >= ind[i] - mpd) &amp; (ind <= ind[i] + mpd) \
-                    &amp; (x[ind[i]] > x[ind] if kpsh else True)
+                idel = idel | (ind >= ind[i] - mpd) and (ind <= ind[i] + mpd) \
+                    and (x[ind[i]] > x[ind] if kpsh else True)
                 idel[i] = 0  # Keep current peak
         # remove the small peaks and sort back the indices by their occurrence
         ind = np.sort(ind[~idel])
