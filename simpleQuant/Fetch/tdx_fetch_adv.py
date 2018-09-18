@@ -182,7 +182,10 @@ class QA_Tdx_Executor():
         try:
             data = {self.get_security_quotes([(self.get_market(
                 x), x) for x in code[80 * pos:80 * (pos + 1)]]) for pos in range(int(len(code) / 80) + 1)}
-            return (pd.concat([self.api_no_connection.to_df(i.result()) for i in data]), datetime.datetime.now())
+            return pd.concat([self.api_no_connection.to_df(i.result()) for i in data])\
+                    .drop(['reversed_bytes1','reversed_bytes2','reversed_bytes3',\
+                    'reversed_bytes4','reversed_bytes5','reversed_bytes6',\
+                    'reversed_bytes7','reversed_bytes8','reversed_bytes9'], axis=1)
         except:
             pass
 
@@ -233,7 +236,7 @@ if __name__ == '__main__':
         try:
             print(x._queue.qsize())
             print(x.fetch_get_stock_day('600000','2018-09-01','2018-09-09','day'))  
-            print(x.get_realtime_concurrent('600000'))
+            print(x.get_realtime_concurrent(['600000','600005']))
             print(x._queue.qsize())  
             time.sleep(301)        
         except Exception:
