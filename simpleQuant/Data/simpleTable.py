@@ -44,7 +44,7 @@ class SimpleTable(tables.Table):
                  group_name='default', mode='a', title="", filters=_filter,
                  expectedrows=512000):
 
-        f = tables.openFile(file_name, mode)
+        f = tables.open_file(file_name, mode)
         self.uservars = None
 
         if group_name is None: group_name = 'default'
@@ -88,7 +88,7 @@ class SimpleTable(tables.Table):
                 row.append()
         self.flush()
 
-    query = tables.Table.readWhere
+   # query = tables.Table.readWhere
 
 # convience sublcass that i use a lot.
 class BlastTable(SimpleTable):
