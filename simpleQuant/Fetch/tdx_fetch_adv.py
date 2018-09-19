@@ -64,7 +64,6 @@ class LoopTimer(Timer):
     def __init__(self, interval, function, args=[], kwargs={}):
         Timer.__init__(self,interval, function, args, kwargs)
 
-
     def run(self):
         while True:
             self.finished.wait(self.interval)
@@ -82,8 +81,15 @@ class QA_Tdx_Executor():
         self._api_worker = Thread(
              target=self.api_worker, args=(), name='API Worker')
         self.executor = ThreadPoolExecutor(self.thread_num)
-        LoopTimer(3,self.__test_connected).start()
+        
+        self._timer=LoopTimer(3,self.__test_connected)
+        self._timer.start()
 
+
+    def _shutdown(self):
+        self.executor.shutdown()
+        self._timer.cancel()
+    
     def __getattr__(self, item):        
         try:
             api = self.get_available()
@@ -241,6 +247,10 @@ if __name__ == '__main__':
             time.sleep(5)        
         except Exception:
             pass
+        except (SystemExit, KeyboardInterrupt):
+            x._shutdown()
+            sys.exit(0)
         finally:
             pass
+    sys.exit(0)
     
