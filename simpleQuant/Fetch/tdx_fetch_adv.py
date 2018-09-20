@@ -243,4 +243,4 @@ if __name__ == '__main__':
             pass
         finally:
             pass
-    
+    sys.exit()
