@@ -70,7 +70,7 @@ def SU_save_stock_day(client=STOCKDATA, ui_log=None, ui_progress=None):
     :return:
     '''
     stock_list = fetch_get_stock_list().code.unique().tolist()
-    coll_stock_day = client.stock_day
+    coll_stock_day = client.hdf5
     coll_stock_day.create_index(
         [("code", pymongo.ASCENDING), ("date_stamp", pymongo.ASCENDING)])
     err = []

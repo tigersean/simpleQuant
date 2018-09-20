@@ -177,7 +177,7 @@ class Util_setting():
 
 SETTINGS = Util_setting()
 REDIS = SETTINGS.redis_uri
-STOCKDATA=SETTINGS.data_uri
+STOCKDATA=SETTINGS.client
 
 
 def exclude_from_stock_ip_list(exclude_ip_list):

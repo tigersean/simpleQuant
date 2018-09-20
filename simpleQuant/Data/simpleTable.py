@@ -30,7 +30,7 @@ Example Usage::
   # case.
 
   # query the data (query() alias of tables' readWhere()
-  >>> tbl.query('(x > 4) & (y < 70)') #doctest: +NORMALIZE_WHITESPACE
+  #>>> tbl.query('(x > 4) & (y < 70)') #doctest: +NORMALIZE_WHITESPACE
   array([('name_5', 5.0, 50.0), ('name_6', 6.0, 60.0)],
         dtype=[('name', '|S16'), ('x', '<f4'), ('y', '<f4')])
 
@@ -40,26 +40,20 @@ import tables
 _filter = tables.Filters(complib="lzo", complevel=1, shuffle=True)
 
 class SimpleTable(tables.Table):
-    def __init__(self, file_name, table_name, description=None,
-                 group_name='default', mode='a', title="", filters=_filter,
-                 expectedrows=512000):
+    def __init__(self, file_name, group_name='default', mode='a', filters=_filter):
 
-        f = tables.open_file(file_name, mode)
+        f = tables.open_file(file_name, mode, _filter)
         self.uservars = None
 
         if group_name is None: group_name = 'default'
-        parentNode = f._getOrCreatePath('/' + group_name, True)
 
-        if table_name in parentNode: # existing table
-            description = None
-        elif description is None: # pull the description from the attrs
-            description = dict(self._get_description())
+        self.parentNode=''
+        try:
+            self.parentNode = f.get_node("/", group_name)
+        except:
+            self.parentNode = f.create_group("/", group_name)
 
-        tables.Table.__init__(self, parentNode, table_name,
-                       description=description, title=title,
-                       filters=filters,
-                       expectedrows=expectedrows,
-                       _log=False)
+        
         self._c_classId = self.__class__.__name__
 
     def _get_description(self):
@@ -73,7 +67,18 @@ class SimpleTable(tables.Table):
             if isinstance(attr, tables.Atom):
                 yield attr_name, attr
 
-    def insert_many(self, data_generator, attr=False):
+
+    def create_table(self, table_name,description=None):
+        if table_name in self.parentNode: # existing table
+            description = None
+        elif description is None: # pull the description from the attrs
+            description = dict(self._get_description())
+
+        tables.Table.__init__(self, self.parentNode, table_name,
+                       description=description,  _log=False)
+
+    def insert_many(self, table_name, data_generator, attr=False):
+        self.create_table(table_name)
         row = self.row
         cols = self.colnames
         if not attr:
@@ -88,7 +93,7 @@ class SimpleTable(tables.Table):
                 row.append()
         self.flush()
 
-   # query = tables.Table.readWhere
+    query = tables.Table.read_where
 
 # convience sublcass that i use a lot.
 class BlastTable(SimpleTable):
@@ -110,7 +115,4 @@ class BlastTable(SimpleTable):
 
 
 if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
-    import os
-    os.unlink('test_docs.h5')
+    pass
