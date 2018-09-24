@@ -26,10 +26,12 @@ import concurrent
 import datetime
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
+from dateutil.parser import parse
 import pandas as pd
 import pymongo
 
 from simpleQuant.Fetch import fetch_get_stock_block
+from simpleQuant.Fetch.base import _select_market_code
 from simpleQuant.Fetch.tdx_fetch import (
     fetch_get_option_day,
     fetch_get_index_day,
@@ -52,64 +54,63 @@ from simpleQuant.Util import (STOCKDATA, util_get_next_day,
 
 # ip=select_best_ip()
 
-
+frequenceDict={'day':'D',
+               'week':'W',
+               'month':'M',
+               '1min':'M1',
+               '5min':'M5',
+               '15min':'M15',
+               '30min':'M30',
+               '60min':'M60'}
 def now_time():
     return str(util_get_real_date(str(datetime.date.today() - datetime.timedelta(days=1)), trade_date_sse, -1)) + \
         ' 17:00:00' if datetime.datetime.now().hour < 15 else str(util_get_real_date(
             str(datetime.date.today()), trade_date_sse, -1)) + ' 15:00:00'
 
+def _sel_market_code(code):
+    code = str(code)
+    if code[0] in ['5', '6', '9'] or code[:3] in ["009", "126", "110", "201", "202", "203", "204"]:
+        return 'SH'
+    return 'SZ'
 
-def SU_save_stock_day(client=STOCKDATA, ui_log=None, ui_progress=None):
-    '''
-     save stock_day
-    保存日线数据
-    :param client:
-    :param ui_log:  给GUI qt 界面使用
-    :param ui_progress: 给GUI qt 界面使用
-    :param ui_progress_int_value: 给GUI qt 界面使用
-    :return:
-    '''
-    stock_list = fetch_get_stock_list().code.unique().tolist()
-    coll_stock_day = client.hdf5
-    coll_stock_day.create_index(
-        [("code", pymongo.ASCENDING), ("date_stamp", pymongo.ASCENDING)])
+
+def _save_stock_data(client=STOCKDATA, stock_list=None, ui_log=None, ui_progress=None, frequence='day'):
+    if stock_list is None: 
+        stock_list = fetch_get_stock_list().code.unique().tolist()
+    data_cli = client
     err = []
-
-    def __saving_work(code, coll_stock_day):
+    
+    def __saving_work_job(code, tb, frequence):
+        
         try:
             util_log_info(
-                '##JOB01 Now Saving STOCK_DAY==== {}'.format(str(code)), ui_log)
-
+                '##JOB01 Now Saving STOCK_'+ frequence +'==== {}'.format(str(code)), ui_log)
             # 首选查找数据库 是否 有 这个代码的数据
-            ref = coll_stock_day.find({'code': str(code)[0:6]})
+            tb.create_table(_sel_market_code(code)+str(code))
             end_date = str(now_time())[0:10]
-
             # 当前数据库已经包含了这个代码的数据， 继续增量更新
             # 加入这个判断的原因是因为如果股票是刚上市的 数据库会没有数据 所以会有负索引问题出现
-            if ref.count() > 0:
-
+            if tb.nrows > 0:
                 # 接着上次获取的日期继续更新
-                start_date = ref[ref.count() - 1]['date']
-
-                util_log_info('UPDATE_STOCK_DAY \n Trying updating {} from {} to {}'.format(
+                start_date = tb[-1]['datetime']
+                start_date=util_get_next_day(parse(str(start_date)).date().strftime('%Y-%m-%d'))
+                util_log_info('UPDATE_STOCK_'+ frequence+' \n Trying updating {} from {} to {}'.format(
                                  code, start_date, end_date),  ui_log)
-                if start_date != end_date:
-                    coll_stock_day.insert_many(
-                        util_to_json_from_pandas(
-                            fetch_get_stock_day(str(code), util_get_next_day(start_date), end_date, '00')))
-
             # 当前数据库中没有这个代码的股票数据， 从1990-01-01 开始下载所有的数据
             else:
                 start_date = '1990-01-01'
-                util_log_info('UPDATE_STOCK_DAY \n Trying updating {} from {} to {}'.format
+                print("start: ",str(start_date))
+                util_log_info('UPDATE_STOCK_'+frequence +'\n Trying updating {} from {} to {}'.format
                                  (code, start_date, end_date),  ui_log)
-                if start_date != end_date:
-                    coll_stock_day.insert_many(
-                        util_to_json_from_pandas(
-                            fetch_get_stock_day(str(code), start_date, end_date, '00')))
+            if start_date < end_date:
+                __data=fetch_get_stock_day(str(code), start_date, end_date, '00', frequence)
+                if (__data != None): 
+                    if len(__data)>0 :
+                        tb.save_data(__data)
         except Exception as error0:
-            print(error0)
-            err.append(str(code))
+            if (error0.__str__() !='ERROR CODE'):
+                print(error0)
+                err.append(str(code))
 
     for item in range(len(stock_list)):
         util_log_info('The {} of Total {}'.format
@@ -121,188 +122,14 @@ def SU_save_stock_day(client=STOCKDATA, ui_log=None, ui_progress=None):
         util_log_info(strProgressToLog, ui_log=ui_log,
                          ui_progress=ui_progress, ui_progress_int_value=intProgressToLog)
 
-        __saving_work(stock_list[item], coll_stock_day)
+        __saving_work_job(stock_list[item], 
+                     data_cli[_sel_market_code(stock_list[item])+frequenceDict[frequence]],frequence)
 
     if len(err) < 1:
-        util_log_info('SUCCESS save stock day ^_^',  ui_log)
+        util_log_info('SUCCESS save stock '+ frequence +' ^_^',  ui_log)
     else:
         util_log_info(' ERROR CODE \n ',  ui_log)
         util_log_info(err, ui_log)
-
-
-def SU_save_stock_week(client=STOCKDATA, ui_log=None, ui_progress=None):
-    """save stock_week
-
-    Keyword Arguments:
-        client {[type]} -- [description] (default: {STOCKDATA})
-    """
-
-    stock_list = fetch_get_stock_list().code.unique().tolist()
-    coll_stock_week = client.stock_week
-    coll_stock_week.create_index(
-        [("code", pymongo.ASCENDING), ("date_stamp", pymongo.ASCENDING)])
-    err = []
-
-    def __saving_work(code, coll_stock_week):
-        try:
-            util_log_info('##JOB01 Now Saving STOCK_WEEK==== {}'.format(
-                str(code)), ui_log=ui_log)
-
-            ref = coll_stock_week.find({'code': str(code)[0:6]})
-            end_date = str(now_time())[0:10]
-            if ref.count() > 0:
-                    # 加入这个判断的原因是因为如果股票是刚上市的 数据库会没有数据 所以会有负索引问题出现
-
-                start_date = ref[ref.count() - 1]['date']
-
-                util_log_info('UPDATE_STOCK_WEEK \n Trying updating {} from {} to {}'.format
-                                 (code, start_date, end_date), ui_log=ui_log)
-                if start_date != end_date:
-                    coll_stock_week.insert_many(
-                        util_to_json_from_pandas(
-                            fetch_get_stock_day(str(code), util_get_next_day(start_date), end_date, '00', frequence='week')))
-            else:
-                start_date = '1990-01-01'
-                util_log_info('UPDATE_STOCK_WEEK \n Trying updating {} from {} to {}'.format
-                                 (code, start_date, end_date), ui_log=ui_log)
-                if start_date != end_date:
-                    coll_stock_week.insert_many(
-                        util_to_json_from_pandas(
-                            fetch_get_stock_day(str(code), start_date, end_date, '00', frequence='week')))
-        except:
-            err.append(str(code))
-    for item in range(len(stock_list)):
-        util_log_info('The {} of Total {}'.format
-                         (item, len(stock_list)), ui_log=ui_log)
-        strProgress = 'DOWNLOAD PROGRESS {} '.format(
-            str(float(item / len(stock_list) * 100))[0:4] + '%')
-        intProgress = int(float(item / len(stock_list) * 100))
-        util_log_info(strProgress, ui_log=ui_log,
-                         ui_progress=ui_progress, ui_progress_int_value=intProgress)
-
-        __saving_work(stock_list[item], coll_stock_week)
-    if len(err) < 1:
-        util_log_info('SUCCESS', ui_log=ui_log)
-    else:
-        util_log_info(' ERROR CODE \n ', ui_log=ui_log)
-        util_log_info(err, ui_log=ui_log)
-
-
-def SU_save_stock_month(client=STOCKDATA, ui_log=None, ui_progress=None):
-    """save stock_month
-
-    Keyword Arguments:
-        client {[type]} -- [description] (default: {STOCKDATA})
-    """
-
-    stock_list = fetch_get_stock_list().code.unique().tolist()
-    coll_stock_month = client.stock_month
-    coll_stock_month.create_index(
-        [("code", pymongo.ASCENDING), ("date_stamp", pymongo.ASCENDING)])
-    err = []
-
-    def __saving_work(code, coll_stock_month):
-        try:
-            util_log_info('##JOB01 Now Saving STOCK_MONTH==== {}'.format(
-                str(code)), ui_log=ui_log)
-
-            ref = coll_stock_month.find({'code': str(code)[0:6]})
-            end_date = str(now_time())[0:10]
-            if ref.count() > 0:
-                    # 加入这个判断的原因是因为如果股票是刚上市的 数据库会没有数据 所以会有负索引问题出现
-
-                start_date = ref[ref.count() - 1]['date']
-
-                util_log_info('UPDATE_STOCK_MONTH \n Trying updating {} from {} to {}'.format
-                                 (code, start_date, end_date), ui_log=ui_log)
-                if start_date != end_date:
-                    coll_stock_month.insert_many(
-                        util_to_json_from_pandas(
-                            fetch_get_stock_day(str(code), util_get_next_day(start_date), end_date, '00', frequence='month')))
-            else:
-                start_date = '1990-01-01'
-                util_log_info('UPDATE_STOCK_MONTH \n Trying updating {} from {} to {}'.format
-                                 (code, start_date, end_date),  ui_log=ui_log)
-                if start_date != end_date:
-                    coll_stock_month.insert_many(
-                        util_to_json_from_pandas(
-                            fetch_get_stock_day(str(code), start_date, end_date, '00', frequence='month')))
-        except:
-            err.append(str(code))
-    for item in range(len(stock_list)):
-        util_log_info('The {} of Total {}'.format(
-            item, len(stock_list)),  ui_log=ui_log)
-        strProgress = 'DOWNLOAD PROGRESS {} '.format(
-            str(float(item / len(stock_list) * 100))[0:4] + '%')
-        intProgress = int(float(item / len(stock_list) * 100))
-        util_log_info(strProgress, ui_log=ui_log,
-                         ui_progress=ui_progress, ui_progress_int_value=intProgress)
-
-        __saving_work(stock_list[item], coll_stock_month)
-    if len(err) < 1:
-        util_log_info('SUCCESS', ui_log=ui_log)
-    else:
-        util_log_info('ERROR CODE \n ', ui_log=ui_log)
-        util_log_info(err, ui_log=ui_log)
-
-
-def SU_save_stock_year(client=STOCKDATA, ui_log=None, ui_progress=None):
-    """save stock_year
-
-    Keyword Arguments:
-        client {[type]} -- [description] (default: {STOCKDATA})
-    """
-
-    stock_list = fetch_get_stock_list().code.unique().tolist()
-    coll_stock_year = client.stock_year
-    coll_stock_year.create_index(
-        [("code", pymongo.ASCENDING), ("date_stamp", pymongo.ASCENDING)])
-    err = []
-
-    def __saving_work(code, coll_stock_year):
-        try:
-            util_log_info(
-                '##JOB01 Now Saving STOCK_YEAR==== {}'.format(str(code)), ui_log=ui_log)
-
-            ref = coll_stock_year.find({'code': str(code)[0:6]})
-            end_date = str(now_time())[0:10]
-            if ref.count() > 0:
-                    # 加入这个判断的原因是因为如果股票是刚上市的 数据库会没有数据 所以会有负索引问题出现
-
-                start_date = ref[ref.count() - 1]['date']
-
-                util_log_info('UPDATE_STOCK_YEAR \n Trying updating {} from {} to {}'.format
-                                 (code, start_date, end_date), ui_log=ui_log)
-                if start_date != end_date:
-                    coll_stock_year.insert_many(
-                        util_to_json_from_pandas(
-                            fetch_get_stock_day(str(code), util_get_next_day(start_date), end_date, '00', frequence='year')))
-            else:
-                start_date = '1990-01-01'
-                util_log_info('UPDATE_STOCK_YEAR \n Trying updating {} from {} to {}'.format
-                                 (code, start_date, end_date), ui_log=ui_log)
-                if start_date != end_date:
-                    coll_stock_year.insert_many(
-                        util_to_json_from_pandas(
-                            fetch_get_stock_day(str(code), start_date, end_date, '00', frequence='year')))
-        except:
-            err.append(str(code))
-    for item in range(len(stock_list)):
-        util_log_info('The {} of Total {}'.format(
-            item, len(stock_list)), ui_log=ui_log)
-
-        strProgress = 'DOWNLOAD PROGRESS {} '.format(
-            str(float(item / len(stock_list) * 100))[0:4] + '%')
-        intProgress = int(float(item / len(stock_list) * 100))
-        util_log_info(strProgress, ui_log=ui_log,
-                         ui_progress=ui_progress, ui_progress_int_value=intProgress)
-
-        __saving_work(stock_list[item], coll_stock_year)
-    if len(err) < 1:
-        util_log_info('SUCCESS', ui_log=ui_log)
-    else:
-        util_log_info(' ERROR CODE \n ', ui_log=ui_log)
-        util_log_info(err, ui_log=ui_log)
 
 
 def SU_save_stock_xdxr(client=STOCKDATA, ui_log=None, ui_progress=None):
@@ -347,29 +174,28 @@ def SU_save_stock_xdxr(client=STOCKDATA, ui_log=None, ui_progress=None):
         __saving_work(stock_list[i_], coll)
 
 
-def SU_save_stock_min(client=STOCKDATA, ui_log=None, ui_progress=None):
+def _save_stock_min(client=STOCKDATA, stock_list=None, ui_log=None, ui_progress=None):
     """save stock_min
 
     Keyword Arguments:
         client {[type]} -- [description] (default: {STOCKDATA})
     """
-
-    stock_list = fetch_get_stock_list().code.unique().tolist()
-    coll = client.stock_min
-    coll.create_index([('code', pymongo.ASCENDING), ('time_stamp',
-                                                     pymongo.ASCENDING), ('date_stamp', pymongo.ASCENDING)])
+    if stock_list is None :
+        stock_list = fetch_get_stock_list().code.unique().tolist()
+    coll = client
     err = []
 
-    def __saving_work(code, coll):
+    def __saving_work(code, tb):
         util_log_info(
             '##JOB03 Now Saving STOCK_MIN ==== {}'.format(str(code)), ui_log=ui_log)
         try:
             for type in ['1min', '5min', '15min', '30min', '60min']:
-                ref_ = coll.find(
-                    {'code': str(code)[0:6], 'type': type})
+                cli=tb[_sel_market_code(code)+frequenceDict[type]]\
+                         .create_table(_sel_market_code(code)+str(code))
                 end_time = str(now_time())[0:19]
-                if ref_.count() > 0:
-                    start_time = ref_[ref_.count() - 1]['datetime']
+
+                if cli.count() > 0:
+                    start_time = cli[-1]['datetime']
 
                     util_log_info(
                         '##JOB03.{} Now Saving {} from {} to {} =={} '.format(['1min', '5min', '15min', '30min', '60min'].index(type),
@@ -379,8 +205,7 @@ def SU_save_stock_min(client=STOCKDATA, ui_log=None, ui_progress=None):
                         __data = fetch_get_stock_min(
                             str(code), start_time, end_time, type)
                         if len(__data) > 1:
-                            coll.insert_many(
-                                util_to_json_from_pandas(__data)[1::])
+                            cli.insert_many(__data[1::])
                 else:
                     start_time = '2015-01-01'
                     util_log_info(
@@ -391,8 +216,7 @@ def SU_save_stock_min(client=STOCKDATA, ui_log=None, ui_progress=None):
                         __data = fetch_get_stock_min(
                             str(code), start_time, end_time, type)
                         if len(__data) > 1:
-                            coll.insert_many(
-                                util_to_json_from_pandas(__data))
+                            cli.save_data(__data)
         except Exception as e:
             util_log_info(e, ui_log=ui_log)
             err.append(code)
@@ -964,7 +788,7 @@ def SU_save_future_min(client=STOCKDATA, ui_log=None, ui_progress=None):
 
 
 if __name__ == '__main__':
-    # SU_save_stock_day()
+    #SU_save_stock_day()
     # SU_save_stock_xdxr()
     # SU_save_stock_min()
     # SU_save_stock_transaction()
@@ -973,4 +797,5 @@ if __name__ == '__main__':
     # SU_save_index_min()
     #SU_save_index_list()
     #SU_save_future_list()
+    _save_stock_data(stock_list=['002937','000001'],frequence='month')
     print(now_time())

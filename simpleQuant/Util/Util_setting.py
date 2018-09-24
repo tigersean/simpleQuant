@@ -40,7 +40,7 @@ from simpleQuant.Util.Util_redis import util_redis_setting
 
 CONFIGFILE_PATH = '{}{}{}'.format(setting_path, os.sep, 'config.ini')
 
-DEFAULT_DATA_URI = 'data'
+DEFAULT_DATA_URI = '../data/'
 
 DEFAULT_REDIS_URI = '127.0.0.1:7792'
 
@@ -151,7 +151,7 @@ class Util_setting():
         return os.environ.get("DATAURI", None)
 
     @property
-    def client(self):
+    def hdf5(self):
         return util_hdf5_setting(self.data_uri)
    
     def snapshot(self):
@@ -161,11 +161,11 @@ class Util_setting():
         self.ip = ip
         self.port = port
         global STOCKDATA
-        STOCKDATA = self.client
+        STOCKDATA = self.hdf5
         return self
 
     def login(self, user_name, password):
-        user = user_sign_in(user_name, password, self.client)
+        user = user_sign_in(user_name, password, self.hdf5)
         if user is not None:
             self.user_name = user_name
             self.password = password
@@ -177,7 +177,7 @@ class Util_setting():
 
 SETTINGS = Util_setting()
 REDIS = SETTINGS.redis_uri
-STOCKDATA=SETTINGS.client
+STOCKDATA=SETTINGS.hdf5
 
 
 def exclude_from_stock_ip_list(exclude_ip_list):

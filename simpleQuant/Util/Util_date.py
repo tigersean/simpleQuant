@@ -728,4 +728,4 @@ month_data = ['1996-03-31', '1996-06-30','1996-09-30','1996-12-31', '1997-03-31'
 
 
 if __name__ == '__main__':
-    print(trade_date_sse.count)
+    print(util_get_next_day('2017-06-30'))

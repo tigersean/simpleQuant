@@ -37,24 +37,26 @@ Example Usage::
 """
 
 import tables
-_filter = tables.Filters(complib="lzo", complevel=1, shuffle=True)
-
+_filter = tables.Filters(complevel=5,complib='blosc', shuffle=True)
 class SimpleTable(tables.Table):
     def __init__(self, file_name, group_name='default', mode='a', filters=_filter):
 
-        f = tables.open_file(file_name, mode, _filter)
+        self.f = tables.open_file(file_name, mode, _filter)
         self.uservars = None
 
         if group_name is None: group_name = 'default'
 
         self.parentNode=''
         try:
-            self.parentNode = f.get_node("/", group_name)
+            self.parentNode = self.f.get_node("/", group_name)
         except:
-            self.parentNode = f.create_group("/", group_name)
+            self.parentNode = self.f.create_group("/", group_name)
 
         
         self._c_classId = self.__class__.__name__
+    
+    def filename(self):
+        return self.f.filename
 
     def _get_description(self):
         # pull the description from the attrs
@@ -81,15 +83,10 @@ class SimpleTable(tables.Table):
         self.create_table(table_name)
         row = self.row
         cols = self.colnames
-        if not attr:
-            for d in data_generator:
-                for c in cols:
-                    row[c] = d[c]
-                row.append()
-        else:
-            for d in data_generator:
-                for c in cols:
-                    row[c] = getattr(d, c)
+        for i, d in data_generator.iterrows():
+            for c in cols:
+                row[c] = d[c]
+                print(row[c], d[c])
                 row.append()
         self.flush()
 
