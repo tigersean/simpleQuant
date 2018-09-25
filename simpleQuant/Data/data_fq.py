@@ -28,7 +28,7 @@ import datetime
 
 import pandas as pd
 
-from QUANTAXIS.QAUtil import DATABASE, QA_util_log_info
+from simpleQuant.Util import STOCKDATA, util_log_info
 
 
 def QA_data_make_qfq(bfq_data, xdxr_data):
@@ -124,5 +124,5 @@ def QA_data_stock_to_fq(__data, type_='01'):
     elif type_ in ['02', 'hfq']:
         return QA_data_make_hfq(__data, __QA_fetch_stock_xdxr(code))
     else:
-        QA_util_log_info('wrong fq type! Using qfq')
+        util_log_info('wrong fq type! Using qfq')
         return QA_data_make_qfq(__data, __QA_fetch_stock_xdxr(code))
