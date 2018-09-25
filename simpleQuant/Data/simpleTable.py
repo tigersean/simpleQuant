@@ -38,6 +38,7 @@ Example Usage::
 
 import tables
 _filter = tables.Filters(complevel=5,complib='blosc', shuffle=True)
+
 class SimpleTable(tables.Table):
     def __init__(self, file_name, group_name='default', mode='a', filters=_filter):
 

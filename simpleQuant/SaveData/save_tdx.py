@@ -28,7 +28,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
 from dateutil.parser import parse
 import pandas as pd
-import pymongo
+
 
 from simpleQuant.Fetch import fetch_get_stock_block
 from simpleQuant.Fetch.base import _select_market_code
@@ -99,13 +99,12 @@ def _save_stock_data(client=STOCKDATA, stock_list=None, ui_log=None, ui_progress
             # 当前数据库中没有这个代码的股票数据， 从1990-01-01 开始下载所有的数据
             else:
                 start_date = '1990-01-01'
-                print("start: ",str(start_date))
                 util_log_info('UPDATE_STOCK_'+frequence +'\n Trying updating {} from {} to {}'.format
                                  (code, start_date, end_date),  ui_log)
-            if start_date < end_date:
-                __data=fetch_get_stock_day(str(code), start_date, end_date, '00', frequence)
-                if (__data != None): 
-                    if len(__data)>0 :
+            if (start_date < end_date):                
+                __data=fetch_get_stock_day(str(code), start_date, end_date, '00', frequence)                
+                if (__data is None)==False: 
+                    if len(__data)>0 :                        
                         tb.save_data(__data)
         except Exception as error0:
             if (error0.__str__() !='ERROR CODE'):
@@ -797,5 +796,5 @@ if __name__ == '__main__':
     # SU_save_index_min()
     #SU_save_index_list()
     #SU_save_future_list()
-    _save_stock_data(stock_list=['002937','000001'],frequence='month')
+    _save_stock_data(stock_list=['000402','000001'],frequence='month')
     print(now_time())
