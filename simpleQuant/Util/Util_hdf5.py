@@ -69,7 +69,7 @@ class HDF_MIN(SimpleTable):
 
     def save_data(self,  data):                
         def fmtdatestr(datetime):
-            return int(datetime.replace('-',''))
+            return int(datetime.replace('-','').replace(':',''))
         row = self.row
         for i, record in data.iterrows():            
             row['datetime'] = fmtdatestr(record['date'])
